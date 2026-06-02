@@ -29,7 +29,7 @@ Set these as regular **Space variables**:
 | Variable | Purpose |
 |---|---|
 | `GH_APP_ID` | Your GitHub App ID (number) |
-| `HF_NAMESPACE` | Namespace (user or org) under which jobs are launched & billed |
+| `HF_NAMESPACE` | (optional) Namespace (user or org) under which jobs are launched & billed. Defaults to this Space's owner. |
 | `RUNNER_IMAGE_CPU` | (optional) Docker image for CPU jobs |
 | `RUNNER_IMAGE_GPU` | (optional) Docker image for GPU jobs |
 | `JOB_TIMEOUT` | (optional) Default per-job timeout, e.g. `1h` |

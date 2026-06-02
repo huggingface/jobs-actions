@@ -68,12 +68,13 @@ In your Space → Settings → **Variables and secrets**, add these as **Secrets
 | `GH_WEBHOOK_SECRET` | The webhook secret from step 2 |
 | `HF_TOKEN` | An HF token with **write** scope |
 
-Add these as regular **Variables**:
+Add this as a regular **Variable**:
 
 | Name | Value |
 |---|---|
 | `GH_APP_ID` | The App ID from step 2 |
-| `HF_NAMESPACE` | The HF namespace that pays for jobs (e.g. your user) |
+
+`HF_NAMESPACE` is optional. By default, jobs run under the owner namespace of the dispatcher Space. Set `HF_NAMESPACE` only if you want jobs billed to a different HF user or org.
 
 Restart the Space to pick them up.
 
