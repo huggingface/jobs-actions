@@ -99,8 +99,9 @@ def make_app(settings: Settings | None = None) -> FastAPI:
         }
         if not configured:
             body["next_steps"] = (
-                "Set GH_APP_ID, GH_APP_PRIVATE_KEY, GH_WEBHOOK_SECRET, "
-                "HF_TOKEN, HF_NAMESPACE as Space secrets and restart."
+                "Set GH_APP_PRIVATE_KEY, GH_WEBHOOK_SECRET, HF_TOKEN as Space "
+                "secrets; set GH_APP_ID as a Space variable; then restart. "
+                "HF_NAMESPACE is optional and defaults to this Space's owner."
             )
             body["error"] = _state(request).get("error")
         return body

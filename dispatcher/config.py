@@ -25,6 +25,28 @@ def _optional(name: str, default: str) -> str:
     return os.environ.get(name, default).strip() or default
 
 
+def _hf_namespace() -> str:
+    value = os.environ.get("HF_NAMESPACE", "").strip()
+    if value:
+        return value
+
+    # HF Spaces expose these built-ins at runtime. Defaulting to the Space
+    # owner keeps duplicated Spaces easier to configure, while HF_NAMESPACE
+    # still allows operators to bill jobs to a different namespace.
+    value = os.environ.get("SPACE_AUTHOR_NAME", "").strip()
+    if value:
+        return value
+
+    space_id = os.environ.get("SPACE_ID", "").strip()
+    if "/" in space_id:
+        return space_id.split("/", 1)[0]
+
+    raise RuntimeError(
+        "Missing required env var: HF_NAMESPACE. "
+        "Set it explicitly when not running inside an HF Space."
+    )
+
+
 @dataclass(frozen=True)
 class Settings:
     # GitHub App
@@ -57,7 +79,7 @@ class Settings:
             gh_app_private_key=raw_key,
             webhook_secret=_required("GH_WEBHOOK_SECRET"),
             hf_token=_required("HF_TOKEN"),
-            hf_namespace=_required("HF_NAMESPACE"),
+            hf_namespace=_hf_namespace(),
             # Default to public base images + runtime install. Operators who
             # care about cold-start latency can point these at prebuilt
             # ghcr.io/<their-org>/jobs-actions-runner[:tag] images instead;

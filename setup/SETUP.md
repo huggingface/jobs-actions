@@ -58,17 +58,23 @@ The App needs these permissions (already in the manifest):
 
 And subscribes to **`workflow_job`** events only.
 
-## 3. Set Space secrets
+## 3. Set Space configuration
 
-In your Space → Settings → **Variables and secrets**, add:
+In your Space → Settings → **Variables and secrets**, add these as **Secrets**:
+
+| Name | Value |
+|---|---|
+| `GH_APP_PRIVATE_KEY` | The contents of the `.pem` file. Paste the whole thing, including BEGIN/END lines. Newlines can be `\n` if the UI doesn't accept multi-line. |
+| `GH_WEBHOOK_SECRET` | The webhook secret from step 2 |
+| `HF_TOKEN` | An HF token with **write** scope |
+
+Add this as a regular **Variable**:
 
 | Name | Value |
 |---|---|
 | `GH_APP_ID` | The App ID from step 2 |
-| `GH_APP_PRIVATE_KEY` | The contents of the `.pem` file. Paste the whole thing, including BEGIN/END lines. Newlines can be `\n` if the UI doesn't accept multi-line. |
-| `GH_WEBHOOK_SECRET` | The webhook secret from step 2 |
-| `HF_TOKEN` | An HF token with **write** scope |
-| `HF_NAMESPACE` | The HF namespace that pays for jobs (e.g. your user) |
+
+`HF_NAMESPACE` is optional. By default, jobs run under the owner namespace of the dispatcher Space. Set `HF_NAMESPACE` only if you want jobs billed to a different HF user or org.
 
 Restart the Space to pick them up.
 
