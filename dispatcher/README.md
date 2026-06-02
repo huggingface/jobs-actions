@@ -20,10 +20,15 @@ Set these as **Space secrets** (Settings → Variables and secrets):
 
 | Variable | Purpose |
 |---|---|
-| `GH_APP_ID` | Your GitHub App ID (number) |
 | `GH_APP_PRIVATE_KEY` | PEM-encoded App private key. Newlines can be encoded as `\n`. |
 | `GH_WEBHOOK_SECRET` | Webhook secret you set on the GitHub App |
 | `HF_TOKEN` | HF token with **write** scope; used to dispatch Jobs |
+
+Set these as regular **Space variables**:
+
+| Variable | Purpose |
+|---|---|
+| `GH_APP_ID` | Your GitHub App ID (number) |
 | `HF_NAMESPACE` | Namespace (user or org) under which jobs are launched & billed |
 | `RUNNER_IMAGE_CPU` | (optional) Docker image for CPU jobs |
 | `RUNNER_IMAGE_GPU` | (optional) Docker image for GPU jobs |
