@@ -20,6 +20,10 @@ cd jobs-actions
 huggingface-cli repo create jobs-actions-dispatcher --type=space \
     --space_sdk=docker --organization=<YOUR_HF_NAMESPACE>
 
+# Recommended for real CI so the dispatcher stays awake for GitHub webhooks.
+hf spaces settings <YOUR_HF_NAMESPACE>/jobs-actions-dispatcher \
+    --hardware cpu-upgrade --sleep-time -1
+
 # Push only the dispatcher subdirectory
 cd dispatcher
 git init -b main
@@ -36,7 +40,7 @@ https://<YOUR_HF_NAMESPACE>-jobs-actions-dispatcher.hf.space
 
 Visit it — you should see the JSON metadata response.
 
-> **Note**: by default the Space runs on the free `cpu-basic` tier, which is plenty since the dispatcher only forwards webhooks. The HF Jobs that *do* the work are billed separately and run on whatever flavor the workflow asks for.
+> **Note**: use `cpu-upgrade` for real CI so the dispatcher stays available for GitHub webhooks. `cpu-basic` is fine for testing and will probably work, but it can sleep after inactivity; if GitHub's webhook arrives while it is waking up, the workflow may stay queued until you rerun it or redeliver the webhook. The HF Jobs that *do* the work are billed separately and run on whatever flavor the workflow asks for.
 
 ## 2. Create the GitHub App
 
@@ -93,7 +97,7 @@ In a workflow:
 ```yaml
 jobs:
   test:
-    runs-on: hf-jobs-cpu-basic   # was: ubuntu-latest
+    runs-on: hf-jobs-cpu-upgrade   # was: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: echo "hello from HF Jobs"
@@ -117,7 +121,7 @@ Things to check if the workflow stays "Queued" forever:
 
 ## Cost notes
 
-- **Dispatcher Space**: free (cpu-basic).
+- **Dispatcher Space**: `cpu-upgrade` is recommended for real CI. `cpu-basic` is fine for testing, but can sleep and miss webhook deliveries.
 - **Per job**: HF Jobs pricing applies. cpu-basic is near-free; `t4-small` is the cheapest GPU tier (~$0.40/hr at time of writing); `a100-large` is the most expensive in common use. Each job ends when its workflow finishes — there is no idle cost.
 - **Cold start**: 30–90s of HF Job startup is billed too, since the runner runs inside the job. Pre-warming is on the roadmap.
 
