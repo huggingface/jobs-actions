@@ -25,6 +25,25 @@ def _optional(name: str, default: str) -> str:
     return os.environ.get(name, default).strip() or default
 
 
+def _allowed_github_repositories() -> frozenset[str] | None:
+    raw = os.environ.get("ALLOWED_GITHUB_REPOSITORIES", "").strip()
+    if not raw:
+        return None
+
+    repositories = frozenset(repo.strip().lower() for repo in raw.split(","))
+    invalid = sorted(
+        repo
+        for repo in repositories
+        if not repo or repo.count("/") != 1 or any(not part for part in repo.split("/"))
+    )
+    if invalid:
+        raise RuntimeError(
+            "Invalid ALLOWED_GITHUB_REPOSITORIES entries: "
+            f"{', '.join(invalid)}. Expected comma-separated owner/repo names."
+        )
+    return repositories
+
+
 def _hf_namespace() -> str:
     value = os.environ.get("HF_NAMESPACE", "").strip()
     if value:
@@ -63,6 +82,7 @@ class Settings:
     runner_image_gpu: str
 
     # Behavior
+    allowed_github_repositories: frozenset[str] | None
     default_timeout: str  # "1h" etc.
     log_level: str
 
@@ -89,6 +109,7 @@ class Settings:
                 "RUNNER_IMAGE_GPU",
                 "nvidia/cuda:12.4.0-runtime-ubuntu22.04",
             ),
+            allowed_github_repositories=_allowed_github_repositories(),
             default_timeout=_optional("JOB_TIMEOUT", "1h"),
             log_level=_optional("LOG_LEVEL", "INFO"),
         )
