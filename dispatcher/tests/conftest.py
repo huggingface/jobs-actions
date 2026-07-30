@@ -47,6 +47,7 @@ def settings(rsa_keypair) -> Settings:
         hf_namespace="testuser",
         runner_image_cpu="ghcr.io/test/jobs-actions-runner:cpu",
         runner_image_gpu="ghcr.io/test/jobs-actions-runner-gpu:gpu",
+        allowed_github_repositories=None,
         default_timeout="1h",
         log_level="DEBUG",
     )

@@ -163,6 +163,54 @@ def test_queued_without_hf_label_skips(client, fake_hf):
     assert fake_hf.dispatches == []
 
 
+def test_queued_from_repository_outside_allowlist_skips(
+    client, fake_gh, fake_hf, settings
+):
+    object.__setattr__(
+        settings,
+        "allowed_github_repositories",
+        frozenset({"gradio-app/trackio", "huggingface/trl"}),
+    )
+    payload = workflow_job_payload(
+        action="queued",
+        labels=["hf-jobs-cpu-basic"],
+        repo="someone-else/expensive-ci",
+    )
+
+    r = _post(client, payload)
+
+    assert r.status_code == 200
+    assert r.json() == {
+        "ok": True,
+        "skipped": "repository not allowed",
+        "repo": "someone-else/expensive-ci",
+    }
+    assert fake_gh.calls == []
+    assert fake_hf.dispatches == []
+
+
+def test_queued_from_repository_inside_allowlist_dispatches(
+    client, fake_gh, fake_hf, settings
+):
+    object.__setattr__(
+        settings,
+        "allowed_github_repositories",
+        frozenset({"gradio-app/trackio", "huggingface/trl"}),
+    )
+    fake_gh.runner_tokens_by_repo["HuggingFace/TRL"] = "RUNNERTOKEN-XYZ"
+    payload = workflow_job_payload(
+        action="queued",
+        labels=["hf-jobs-cpu-basic"],
+        repo="HuggingFace/TRL",
+    )
+
+    r = _post(client, payload)
+
+    assert r.status_code == 200
+    assert r.json()["hf_job_id"].startswith("hfjob-")
+    assert len(fake_hf.dispatches) == 1
+
+
 def test_queued_with_self_hosted_and_hf_label_dispatches(client, fake_hf):
     payload = workflow_job_payload(
         action="queued",

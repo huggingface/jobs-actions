@@ -77,6 +77,7 @@ Add this as a regular **Variable**:
 | Name | Value |
 |---|---|
 | `GH_APP_ID` | The App ID from step 2 |
+| `ALLOWED_GITHUB_REPOSITORIES` | Recommended when the GitHub App is public. Comma-separated repositories allowed to launch Jobs, e.g. `gradio-app/trackio,huggingface/trl`. If unset, all repositories where the App is installed are allowed. |
 
 `HF_NAMESPACE` is optional. By default, jobs run under the owner namespace of the dispatcher Space. Set `HF_NAMESPACE` only if you want jobs billed to a different HF user or org.
 

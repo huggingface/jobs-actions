@@ -137,7 +137,12 @@ def make_app(settings: Settings | None = None) -> FastAPI:
         if event != "workflow_job":
             return {"ok": True, "skipped": f"event={event}"}
 
-        return await _handle_workflow_job(payload, gh=gh, hf=hf)
+        return await _handle_workflow_job(
+            payload,
+            gh=gh,
+            hf=hf,
+            allowed_repositories=s.allowed_github_repositories,
+        )
 
     return app
 
@@ -147,6 +152,7 @@ async def _handle_workflow_job(
     *,
     gh: GitHubAppClient,
     hf: HFJobsClient,
+    allowed_repositories: frozenset[str] | None = None,
 ) -> dict[str, Any]:
     action = payload.get("action")
     wj = payload.get("workflow_job", {})
@@ -161,6 +167,20 @@ async def _handle_workflow_job(
             return {"ok": True, "skipped": "no hf-jobs-* label", "labels": labels}
 
         repo = payload["repository"]["full_name"]
+        if (
+            allowed_repositories is not None
+            and repo.lower() not in allowed_repositories
+        ):
+            log.warning(
+                "skipping workflow job from repository outside allowlist",
+                extra={"repo": repo},
+            )
+            return {
+                "ok": True,
+                "skipped": "repository not allowed",
+                "repo": repo,
+            }
+
         installation_id = payload.get("installation", {}).get("id")
         if not installation_id:
             raise HTTPException(
