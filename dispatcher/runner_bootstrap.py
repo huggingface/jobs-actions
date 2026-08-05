@@ -18,7 +18,7 @@ from __future__ import annotations
 
 # Pin the GitHub Actions runner version. Bump in lockstep with whatever
 # GitHub is currently requiring; older versions get rejected during config.
-RUNNER_VERSION = "2.319.1"
+RUNNER_VERSION = "2.336.0"
 
 BOOTSTRAP = rf"""
 set -euo pipefail
@@ -34,7 +34,7 @@ echo "[jobs-actions] repo=${{GH_REPO}} labels=${{RUNNER_LABELS}} name=${{RUNNER_
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -qq -y --no-install-recommends \
-    ca-certificates curl git git-lfs jq libicu70 sudo \
+    ca-certificates curl git git-lfs jq sudo \
     >/dev/null
 
 useradd -m -s /bin/bash runner 2>/dev/null || true
@@ -63,12 +63,12 @@ sudo ./bin/installdependencies.sh >/dev/null
 
 cleanup() {{
     if [[ -f .runner ]]; then
-        sudo -u runner ./config.sh remove --token "${{RUNNER_TOKEN}}" 2>/dev/null || true
+        sudo -u runner -E env HOME=/home/runner ./config.sh remove --token "${{RUNNER_TOKEN}}" 2>/dev/null || true
     fi
 }}
 trap cleanup EXIT INT TERM
 
-sudo -u runner -E ./config.sh \
+sudo -u runner -E env HOME=/home/runner ./config.sh \
     --url "https://github.com/${{GH_REPO}}" \
     --token "${{RUNNER_TOKEN}}" \
     --name "${{RUNNER_NAME}}" \
@@ -77,5 +77,5 @@ sudo -u runner -E ./config.sh \
     --ephemeral --unattended --replace --disableupdate
 
 # Runner exits after one job thanks to --ephemeral.
-exec sudo -u runner -E ./run.sh
+exec sudo -u runner -E env HOME=/home/runner ./run.sh
 """
