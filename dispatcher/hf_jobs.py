@@ -6,6 +6,7 @@ We isolate HF Jobs interaction here so it can be mocked cleanly in tests.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 
 from huggingface_hub import HfApi
@@ -14,6 +15,18 @@ from .flavors import LABEL_TO_FLAVOR, is_gpu_flavor
 from .runner_bootstrap import BOOTSTRAP
 
 log = logging.getLogger(__name__)
+
+_INVALID_LABEL_CHARS = re.compile(r"[^a-zA-Z0-9._-]")
+
+
+def sanitize_label_value(value: str) -> str:
+    """Coerce a label value to the charset HF Jobs accepts.
+
+    HF Jobs validates label values against `^[a-zA-Z0-9._-]*$` and rejects the
+    whole request otherwise. `gh-repo` is an `owner/name` slug, so the slash
+    would 400 every dispatch and leave the GitHub job queued forever.
+    """
+    return _INVALID_LABEL_CHARS.sub("_", value)
 
 
 @dataclass
@@ -79,8 +92,8 @@ class HFJobsClient:
             namespace=self._namespace,
             labels={
                 "managed-by": "jobs-actions",
-                "gh-repo": repo,
-                "gh-label": label,
+                "gh-repo": sanitize_label_value(repo),
+                "gh-label": sanitize_label_value(label),
             },
         )
         log.info(

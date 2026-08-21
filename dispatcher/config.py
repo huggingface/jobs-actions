@@ -104,10 +104,10 @@ class Settings:
             # care about cold-start latency can point these at prebuilt
             # ghcr.io/<their-org>/jobs-actions-runner[:tag] images instead;
             # see runner/Dockerfile{,.gpu}.
-            runner_image_cpu=_optional("RUNNER_IMAGE_CPU", "ubuntu:22.04"),
+            runner_image_cpu=_optional("RUNNER_IMAGE_CPU", "ubuntu:24.04"),
             runner_image_gpu=_optional(
                 "RUNNER_IMAGE_GPU",
-                "nvidia/cuda:12.4.0-runtime-ubuntu22.04",
+                "nvidia/cuda:12.9.2-runtime-ubuntu24.04",
             ),
             allowed_github_repositories=_allowed_github_repositories(),
             default_timeout=_optional("JOB_TIMEOUT", "1h"),

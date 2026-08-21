@@ -96,8 +96,23 @@ def test_dispatch_includes_labels_for_grouping(patched_api):
     )
     labels = patched_api.run_job.call_args.kwargs["labels"]
     assert labels["managed-by"] == "jobs-actions"
-    assert labels["gh-repo"] == "myorg/myrepo"
+    assert labels["gh-repo"] == "myorg_myrepo"
     assert labels["gh-label"] == "hf-jobs-a10g-small"
+
+
+def test_dispatch_label_values_match_hf_jobs_charset(patched_api):
+    import re
+
+    c = _client()
+    c.dispatch(
+        label="hf-jobs-a10g-small",
+        repo="my org/my@repo#1",
+        runner_token="tok",
+        runner_name="hfjobs-1-2",
+    )
+    labels = patched_api.run_job.call_args.kwargs["labels"]
+    for value in labels.values():
+        assert re.fullmatch(r"[a-zA-Z0-9._-]*", value), value
 
 
 def test_cancel_calls_api(patched_api):
