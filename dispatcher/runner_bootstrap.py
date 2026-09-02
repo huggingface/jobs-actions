@@ -73,6 +73,7 @@ sudo -u runner -E env HOME=/home/runner ./config.sh \
     --token "${{RUNNER_TOKEN}}" \
     --name "${{RUNNER_NAME}}" \
     --labels "${{RUNNER_LABELS}}" \
+    --no-default-labels \
     --work _work \
     --ephemeral --unattended --replace --disableupdate
 

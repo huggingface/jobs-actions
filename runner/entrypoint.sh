@@ -42,6 +42,7 @@ trap cleanup EXIT INT TERM
     --token "${RUNNER_TOKEN}" \
     --name "${RUNNER_NAME}" \
     --labels "${RUNNER_LABELS}" \
+    --no-default-labels \
     --runnergroup "${RUNNER_GROUP}" \
     --work "${RUNNER_WORKDIR}" \
     --ephemeral \
