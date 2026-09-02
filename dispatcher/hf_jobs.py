@@ -16,13 +16,13 @@ from .runner_bootstrap import BOOTSTRAP
 
 log = logging.getLogger(__name__)
 
-_INVALID_LABEL_CHARS = re.compile(r"[^a-zA-Z0-9._-]")
+_INVALID_LABEL_CHARS = re.compile(r"[^a-zA-Z0-9_-]")
 
 
 def sanitize_label_value(value: str) -> str:
     """Coerce a label value to the charset HF Jobs accepts.
 
-    HF Jobs validates label values against `^[a-zA-Z0-9._-]*$` and rejects the
+    HF Jobs validates label values against `^[a-zA-Z0-9_-]*$` and rejects the
     whole request otherwise. `gh-repo` is an `owner/name` slug, so the slash
     would 400 every dispatch and leave the GitHub job queued forever.
     """
