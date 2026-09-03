@@ -64,11 +64,11 @@ def test_dispatch_gpu_with_base_image_uses_bootstrap_and_gpu_image(patched_api):
 
 
 def test_dispatch_with_prebuilt_image_uses_entrypoint(patched_api):
-    c = _client(runner_image_cpu="ghcr.io/myorg/jobs-actions-runner:latest")
+    c = _client()
     c.dispatch(
         label="hf-jobs-cpu-basic",
         repo="o/r",
-        image="",
+        image="ghcr.io/myorg/jobs-actions-runner:latest",
         runner_token="tok",
         runner_name="hfjobs-1-2",
         runner_label="",

@@ -81,12 +81,11 @@ class FakeHF:
         self._next_id = 1
 
     def dispatch(
-        self, *, label: str, repo: str, runner_token: str, runner_name: str
+        self, *, label: str, repo: str, image: str, runner_token: str, runner_name: str, runner_label: str
     ) -> DispatchResult:
-        from dispatcher.flavors import LABEL_TO_FLAVOR, is_gpu_flavor
+        from dispatcher.flavors import LABEL_TO_FLAVOR
 
         flavor = LABEL_TO_FLAVOR[label]
-        image = "gpu-image" if is_gpu_flavor(flavor) else "cpu-image"
         job_id = f"hfjob-{self._next_id:04d}"
         self._next_id += 1
         self.dispatches.append(
