@@ -105,7 +105,7 @@ def test_dispatch_includes_labels_for_grouping(patched_api):
     labels = patched_api.run_job.call_args.kwargs["labels"]
     assert labels["managed-by"] == "jobs-actions"
     assert labels["gh-repo"] == "myorg_myrepo"
-    assert labels["gh-label"] == "hf-jobs-a10g-small:cuda"
+    assert labels["gh-label"] == "hf-jobs-a10g-small_cuda"
 
 
 def test_dispatch_label_values_match_hf_jobs_charset(patched_api):
