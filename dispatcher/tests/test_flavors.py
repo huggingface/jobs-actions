@@ -15,7 +15,14 @@ def test_label_map_includes_common_flavors():
 
 
 def test_resolve_label_finds_first_match():
-    assert resolve_label(["self-hosted", "hf-jobs-cpu-basic"]) == "hf-jobs-cpu-basic"
+    labels = resolve_label(["self-hosted", "hf-jobs-cpu-basic"])
+    assert labels
+    assert labels[0] == "hf-jobs-cpu-basic"
+    labels = resolve_label(["self-hosted", "hf-jobs-cpu-basic:gpu"])
+    assert labels
+    assert labels[0] == "hf-jobs-cpu-basic"
+    assert labels[1] == "gpu"
+    assert labels[2] == "hf-jobs-cpu-basic:gpu"
 
 
 def test_resolve_label_returns_none_when_no_match():

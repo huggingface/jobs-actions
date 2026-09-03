@@ -24,8 +24,6 @@ def _client(**overrides):
     defaults = dict(
         token="hf_test",
         namespace="ns",
-        runner_image_cpu="ubuntu:22.04",
-        runner_image_gpu="nvidia/cuda:12.4.0-runtime-ubuntu22.04",
     )
     defaults.update(overrides)
     return HFJobsClient(**defaults)
@@ -36,8 +34,10 @@ def test_dispatch_cpu_with_base_image_uses_bootstrap(patched_api):
     c.dispatch(
         label="hf-jobs-cpu-basic",
         repo="o/r",
+        image="ubuntu:22.04",
         runner_token="tok",
         runner_name="hfjobs-1-2",
+        runner_label="",
     )
     kw = patched_api.run_job.call_args.kwargs
     assert kw["image"] == "ubuntu:22.04"
@@ -52,8 +52,10 @@ def test_dispatch_gpu_with_base_image_uses_bootstrap_and_gpu_image(patched_api):
     c.dispatch(
         label="hf-jobs-t4-small",
         repo="o/r",
+        image="nvidia/cuda:12.4.0-runtime-ubuntu22.04",
         runner_token="tok",
         runner_name="hfjobs-1-2",
+        runner_label="",
     )
     kw = patched_api.run_job.call_args.kwargs
     assert "cuda" in kw["image"]
@@ -66,8 +68,10 @@ def test_dispatch_with_prebuilt_image_uses_entrypoint(patched_api):
     c.dispatch(
         label="hf-jobs-cpu-basic",
         repo="o/r",
+        image="",
         runner_token="tok",
         runner_name="hfjobs-1-2",
+        runner_label="",
     )
     kw = patched_api.run_job.call_args.kwargs
     assert kw["command"] == ["/entrypoint.sh"]
@@ -78,8 +82,10 @@ def test_runner_token_passes_via_secrets_not_env(patched_api):
     c.dispatch(
         label="hf-jobs-cpu-basic",
         repo="o/r",
+        image="",
         runner_token="SUPERSECRET",
         runner_name="hfjobs-1-2",
+        runner_label="",
     )
     kw = patched_api.run_job.call_args.kwargs
     assert "RUNNER_TOKEN" not in kw["env"]
@@ -91,13 +97,15 @@ def test_dispatch_includes_labels_for_grouping(patched_api):
     c.dispatch(
         label="hf-jobs-a10g-small",
         repo="myorg/myrepo",
+        image="",
         runner_token="tok",
         runner_name="hfjobs-1-2",
+        runner_label="hf-jobs-a10g-small:cuda",
     )
     labels = patched_api.run_job.call_args.kwargs["labels"]
     assert labels["managed-by"] == "jobs-actions"
     assert labels["gh-repo"] == "myorg_myrepo"
-    assert labels["gh-label"] == "hf-jobs-a10g-small"
+    assert labels["gh-label"] == "hf-jobs-a10g-small:cuda"
 
 
 def test_dispatch_label_values_match_hf_jobs_charset(patched_api):
@@ -106,13 +114,15 @@ def test_dispatch_label_values_match_hf_jobs_charset(patched_api):
     c = _client()
     c.dispatch(
         label="hf-jobs-a10g-small",
-        repo="my org/my@repo#1",
+        repo="my org/my@repo#1.2",
+        image="",
         runner_token="tok",
         runner_name="hfjobs-1-2",
+        runner_label="",
     )
     labels = patched_api.run_job.call_args.kwargs["labels"]
     for value in labels.values():
-        assert re.fullmatch(r"[a-zA-Z0-9._-]*", value), value
+        assert re.fullmatch(r"[a-zA-Z0-9_-]*", value), value
 
 
 def test_cancel_calls_api(patched_api):
