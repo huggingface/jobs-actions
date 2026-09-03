@@ -25,7 +25,7 @@ from fastapi import FastAPI, HTTPException, Request
 
 from . import __version__
 from .config import Settings
-from .flavors import LABEL_TO_FLAVOR, resolve_label, supported_labels, is_gpu_flavor
+from .flavors import LABEL_TO_FLAVOR, is_gpu_flavor, resolve_label, supported_labels
 from .github_app import GitHubAppClient, verify_signature
 from .hf_jobs import HFJobsClient
 
