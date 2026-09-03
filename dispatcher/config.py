@@ -25,6 +25,14 @@ def _optional(name: str, default: str) -> str:
     return os.environ.get(name, default).strip() or default
 
 
+def _kv_set(prefix: str, **defaults) -> frozenset[tuple[str, str]]:
+    kv = list(defaults.items())
+    for k, v in os.environ.items():
+        if k.startswith(prefix) and len(k) > len(prefix):
+            kv.append((k[len(prefix):].upper(), v.strip()))
+    return frozenset(dict(kv).items())
+
+
 def _allowed_github_repositories() -> frozenset[str] | None:
     raw = os.environ.get("ALLOWED_GITHUB_REPOSITORIES", "").strip()
     if not raw:
@@ -78,8 +86,7 @@ class Settings:
     hf_namespace: str  # who gets billed for jobs
 
     # Runner images
-    runner_image_cpu: str
-    runner_image_gpu: str
+    runner_images: frozenset[tuple[str, str]]
 
     # Behavior
     allowed_github_repositories: frozenset[str] | None
@@ -104,11 +111,7 @@ class Settings:
             # care about cold-start latency can point these at prebuilt
             # ghcr.io/<their-org>/jobs-actions-runner[:tag] images instead;
             # see runner/Dockerfile{,.gpu}.
-            runner_image_cpu=_optional("RUNNER_IMAGE_CPU", "ubuntu:24.04"),
-            runner_image_gpu=_optional(
-                "RUNNER_IMAGE_GPU",
-                "nvidia/cuda:12.9.2-runtime-ubuntu24.04",
-            ),
+            runner_images=_kv_set("RUNNER_IMAGE_", CPU="ubuntu:24.04", GPU="nvidia/cuda:12.9.2-runtime-ubuntu24.04"),
             allowed_github_repositories=_allowed_github_repositories(),
             default_timeout=_optional("JOB_TIMEOUT", "1h"),
             log_level=_optional("LOG_LEVEL", "INFO"),

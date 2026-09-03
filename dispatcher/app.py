@@ -25,7 +25,7 @@ from fastapi import FastAPI, HTTPException, Request
 
 from . import __version__
 from .config import Settings
-from .flavors import LABEL_TO_FLAVOR, resolve_label, supported_labels
+from .flavors import LABEL_TO_FLAVOR, is_gpu_flavor, resolve_label, supported_labels
 from .github_app import GitHubAppClient, verify_signature
 from .hf_jobs import HFJobsClient
 
@@ -71,8 +71,6 @@ def make_app(settings: Settings | None = None) -> FastAPI:
         hf = HFJobsClient(
             token=s.hf_token,
             namespace=s.hf_namespace,
-            runner_image_cpu=s.runner_image_cpu,
-            runner_image_gpu=s.runner_image_gpu,
             timeout=s.default_timeout,
         )
         app.state.deps = {"settings": s, "gh": gh, "hf": hf}
@@ -95,7 +93,7 @@ def make_app(settings: Settings | None = None) -> FastAPI:
             "version": __version__,
             "configured": configured,
             "supported_labels": supported_labels(),
-            "docs": "https://github.com/abidlabs/jobs-actions",
+            "docs": "https://github.com/huggingface/jobs-actions",
         }
         if not configured:
             body["next_steps"] = (
@@ -142,6 +140,7 @@ def make_app(settings: Settings | None = None) -> FastAPI:
             gh=gh,
             hf=hf,
             allowed_repositories=s.allowed_github_repositories,
+            runner_images=dict(s.runner_images),
         )
 
     return app
@@ -153,6 +152,7 @@ async def _handle_workflow_job(
     gh: GitHubAppClient,
     hf: HFJobsClient,
     allowed_repositories: frozenset[str] | None = None,
+    runner_images: dict[str, str],
 ) -> dict[str, Any]:
     action = payload.get("action")
     wj = payload.get("workflow_job", {})
@@ -162,9 +162,23 @@ async def _handle_workflow_job(
     key = (run_id, job_id) if run_id and job_id else None
 
     if action == "queued":
-        hf_label = resolve_label(labels)
-        if hf_label is None:
+        gh_label = resolve_label(labels)
+        if gh_label is None:
             return {"ok": True, "skipped": "no hf-jobs-* label", "labels": labels}
+        hf_label, image_label, gh_label = gh_label
+        flavor = LABEL_TO_FLAVOR[hf_label]
+
+        if image_label:
+            image_label = image_label.upper()
+        else:
+            image_label = "GPU" if is_gpu_flavor(flavor) else "CPU"
+
+        if image_label not in runner_images:
+            log.warning(
+                "skipping workflow job with no matching image label",
+                extra={"label": image_label},
+            )
+            return {"ok": True, "skipped": "no matching image label", "labels": labels}
 
         repo = payload["repository"]["full_name"]
         if (
@@ -194,8 +208,10 @@ async def _handle_workflow_job(
         result = hf.dispatch(
             label=hf_label,
             repo=repo,
+            image=runner_images[image_label],
             runner_token=runner_token,
             runner_name=runner_name,
+            runner_label=gh_label,
         )
 
         if key:
@@ -206,6 +222,7 @@ async def _handle_workflow_job(
             extra={
                 "repo": repo,
                 "label": hf_label,
+                "image": result.image,
                 "flavor": result.flavor,
                 "hf_job_id": result.job_id,
                 "gh_run_id": run_id,
@@ -216,7 +233,7 @@ async def _handle_workflow_job(
             "ok": True,
             "hf_job_id": result.job_id,
             "flavor": result.flavor,
-            "label": hf_label,
+            "label": gh_label,
         }
 
     if action in {"completed", "in_progress"}:

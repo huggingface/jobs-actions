@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from huggingface_hub import HfApi
 
-from .flavors import LABEL_TO_FLAVOR, is_gpu_flavor
+from .flavors import LABEL_TO_FLAVOR
 from .runner_bootstrap import BOOTSTRAP
 
 log = logging.getLogger(__name__)
@@ -42,14 +42,10 @@ class HFJobsClient:
         *,
         token: str,
         namespace: str,
-        runner_image_cpu: str,
-        runner_image_gpu: str,
         timeout: str = "1h",
     ) -> None:
         self._api = HfApi(token=token)
         self._namespace = namespace
-        self._image_cpu = runner_image_cpu
-        self._image_gpu = runner_image_gpu
         self._timeout = timeout
 
     def dispatch(
@@ -57,15 +53,16 @@ class HFJobsClient:
         *,
         label: str,
         repo: str,
+        image: str,
         runner_token: str,
         runner_name: str,
+        runner_label: str,
     ) -> DispatchResult:
         flavor = LABEL_TO_FLAVOR[label]
-        image = self._image_gpu if is_gpu_flavor(flavor) else self._image_cpu
 
         env = {
             "GH_REPO": repo,
-            "RUNNER_LABELS": label,
+            "RUNNER_LABELS": runner_label,
             "RUNNER_NAME": runner_name,
         }
         # RUNNER_TOKEN is sensitive — pass via `secrets` so it's not echoed
@@ -93,7 +90,7 @@ class HFJobsClient:
             labels={
                 "managed-by": "jobs-actions",
                 "gh-repo": sanitize_label_value(repo),
-                "gh-label": sanitize_label_value(label),
+                "gh-label": sanitize_label_value(runner_label),
             },
         )
         log.info(
@@ -103,6 +100,7 @@ class HFJobsClient:
                 "flavor": flavor,
                 "repo": repo,
                 "label": label,
+                "image": image,
                 "namespace": self._namespace,
             },
         )

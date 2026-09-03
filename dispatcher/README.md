@@ -33,6 +33,7 @@ Set these as regular **Space variables**:
 | `ALLOWED_GITHUB_REPOSITORIES` | (recommended for public Apps) Comma-separated `owner/repo` allowlist. Webhooks from all other repositories are ignored. |
 | `RUNNER_IMAGE_CPU` | (optional) Docker image for CPU jobs |
 | `RUNNER_IMAGE_GPU` | (optional) Docker image for GPU jobs |
+| `RUNNER_IMAGE_*`   | (optional) Docker image for jobs with image label ("hf-jobs-foo:*") |
 | `JOB_TIMEOUT` | (optional) Default per-job timeout, e.g. `1h` |
 
 See [`setup/SETUP.md`](https://github.com/abidlabs/jobs-actions/blob/main/setup/SETUP.md) for the full walkthrough.
