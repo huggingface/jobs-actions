@@ -111,7 +111,7 @@ def test_webhook_ignores_unrelated_events(client):
     assert r.json()["skipped"] == "event=pull_request"
 
 
-def test_queued_with_hf_label_dispatches(client, fake_gh, fake_hf):
+def test_queued_with_hf_label_dispatches(client, fake_gh, fake_hf, settings):
     payload = workflow_job_payload(
         action="queued",
         labels=["hf-jobs-cpu-basic"],
@@ -136,13 +136,15 @@ def test_queued_with_hf_label_dispatches(client, fake_gh, fake_hf):
     assert d["runner_token"] == "RUNNERTOKEN-XYZ"
     assert d["runner_name"] == "hfjobs-11-22"
     assert d["flavor"] == "cpu-basic"
+    cpu_image = dict(settings.runner_images)["CPU"]
+    assert d["image"] == cpu_image
 
     # GitHub side: installation token then runner token
     ops = [c["op"] for c in fake_gh.calls]
     assert ops == ["installation_token", "runner_registration_token"]
 
 
-def test_queued_with_gpu_label_dispatches_gpu_image(client, fake_hf):
+def test_queued_with_gpu_label_dispatches_gpu_image(client, fake_hf, settings):
     payload = workflow_job_payload(
         action="queued",
         labels=["hf-jobs-t4-small"],
@@ -151,11 +153,43 @@ def test_queued_with_gpu_label_dispatches_gpu_image(client, fake_hf):
     assert r.status_code == 200
     assert r.json()["flavor"] == "t4-small"
 
+    # Verify the path through the fakes
+    assert len(fake_hf.dispatches) == 1
+    d = fake_hf.dispatches[0]
+    gpu_image = dict(settings.runner_images)["GPU"]
+    assert d["image"] == gpu_image
+
+
+def test_queued_with_gpu_image_label_dispatches_gpu_image(client, fake_hf, settings):
+    payload = workflow_job_payload(
+        action="queued",
+        labels=["hf-jobs-cpu-basic:gpu"],
+    )
+    r = _post(client, payload)
+    assert r.status_code == 200
+
+    # Verify the path through the fakes
+    assert len(fake_hf.dispatches) == 1
+    d = fake_hf.dispatches[0]
+    gpu_image = dict(settings.runner_images)["GPU"]
+    assert d["image"] == gpu_image
+
 
 def test_queued_without_hf_label_skips(client, fake_hf):
     payload = workflow_job_payload(
         action="queued",
         labels=["ubuntu-latest"],
+    )
+    r = _post(client, payload)
+    assert r.status_code == 200
+    assert "skipped" in r.json()
+    assert fake_hf.dispatches == []
+
+
+def test_queued_with_bad_image_label_skips(client, fake_hf):
+    payload = workflow_job_payload(
+        action="queued",
+        labels=["hf-jobs-cpu-basic:nonexist"],
     )
     r = _post(client, payload)
     assert r.status_code == 200
