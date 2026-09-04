@@ -28,8 +28,8 @@ def _optional(name: str, default: str) -> str:
 def _kv_set(prefix: str, **defaults) -> frozenset[tuple[str, str]]:
     kv = list(defaults.items())
     for k, v in os.environ.items():
-        if k.startswith(prefix) and len(k) > len(prefix):
-            kv.append((k[len(prefix):].upper(), v.strip()))
+        if k.startswith(prefix) and len(k) > len(prefix) and (val := v.strip()):
+            kv.append((k[len(prefix):].upper(), val))
     return frozenset(dict(kv).items())
 
 
