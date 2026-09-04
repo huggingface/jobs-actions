@@ -45,8 +45,7 @@ def settings(rsa_keypair) -> Settings:
         webhook_secret="s3cret",
         hf_token="hf_test",
         hf_namespace="testuser",
-        runner_image_cpu="ghcr.io/test/jobs-actions-runner:cpu",
-        runner_image_gpu="ghcr.io/test/jobs-actions-runner-gpu:gpu",
+        runner_images=(("CPU", "ghcr.io/test/jobs-actions-runner:cpu"), ("GPU", "ghcr.io/test/jobs-actions-runner-gpu:gpu")),
         allowed_github_repositories=None,
         default_timeout="1h",
         log_level="DEBUG",
@@ -82,12 +81,11 @@ class FakeHF:
         self._next_id = 1
 
     def dispatch(
-        self, *, label: str, repo: str, runner_token: str, runner_name: str
+        self, *, label: str, repo: str, image: str, runner_token: str, runner_name: str, runner_label: str
     ) -> DispatchResult:
-        from dispatcher.flavors import LABEL_TO_FLAVOR, is_gpu_flavor
+        from dispatcher.flavors import LABEL_TO_FLAVOR
 
         flavor = LABEL_TO_FLAVOR[label]
-        image = "gpu-image" if is_gpu_flavor(flavor) else "cpu-image"
         job_id = f"hfjob-{self._next_id:04d}"
         self._next_id += 1
         self.dispatches.append(
