@@ -28,6 +28,9 @@ def test_root_returns_metadata(client):
     body = r.json()
     assert body["service"] == "jobs-actions-dispatcher"
     assert "supported_labels" in body
+    assert "supported_image_labels" in body
+    assert "CPU" in body["supported_image_labels"]
+    assert "GPU" in body["supported_image_labels"]
     assert "hf-jobs-cpu-basic" in body["supported_labels"]
     assert body["configured"] is True
 

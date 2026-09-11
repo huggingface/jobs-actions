@@ -93,6 +93,7 @@ def make_app(settings: Settings | None = None) -> FastAPI:
             "version": __version__,
             "configured": configured,
             "supported_labels": supported_labels(),
+            "supported_image_labels": [t[0] for t in _state(request)["settings"].runner_images] if configured else [],
             "docs": "https://github.com/huggingface/jobs-actions",
         }
         if not configured:
