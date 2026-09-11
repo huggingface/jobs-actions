@@ -31,7 +31,7 @@ Set these as regular **Space variables**:
 | `GH_APP_ID` | Your GitHub App ID (number) |
 | `HF_NAMESPACE` | (optional) Namespace (user or org) under which jobs are launched & billed. Defaults to this Space's owner. |
 | `ALLOWED_GITHUB_REPOSITORIES` | (recommended for public Apps) Comma-separated `owner/repo` allowlist. Webhooks from all other repositories are ignored. |
-| `RUNNER_IMAGE_<LABEL>` | (optional) Maps the case-insensitive `:<label>` suffix in `runs-on: hf-jobs-<flavor>:<label>` to a Docker image |
+| `RUNNER_IMAGE_<LABEL>` | (optional) Maps the case-insensitive `:<label>` suffix in `runs-on: "hf-jobs-<flavor>:<label>"` to a Docker image |
 | `RUNNER_IMAGE_CPU` | (optional) Default Docker image for CPU jobs based on flavor, can also be explicitly selected with `:cpu` |
 | `RUNNER_IMAGE_GPU` | (optional) Default Docker image for GPU jobs based on flavor, can also be explicitly selected with `:gpu` |
 | `JOB_TIMEOUT` | (optional) Default per-job timeout, e.g. `1h` |
