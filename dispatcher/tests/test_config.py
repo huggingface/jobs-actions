@@ -44,6 +44,23 @@ def test_hf_namespace_required_outside_space(base_env):
         Settings.from_env()
 
 
+def test_runner_images_uses_explicit_override(base_env, monkeypatch):
+    monkeypatch.setenv("HF_NAMESPACE", "billing-org")
+    monkeypatch.setenv("RUNNER_IMAGE_CPU", "no-image")
+
+    assert dict(Settings.from_env().runner_images)["CPU"] == "no-image"
+
+
+def test_runner_images_populates_from_env(base_env, monkeypatch):
+    monkeypatch.setenv("HF_NAMESPACE", "billing-org")
+    monkeypatch.setenv("RUNNER_IMAGE_DEBIAN", "debian")
+    monkeypatch.setenv("RUNNER_IMAGE_ubuntu26_04", "ubuntu:26.04")
+
+    runner_images = dict(Settings.from_env().runner_images)
+    assert runner_images["DEBIAN"] == "debian"
+    assert runner_images["UBUNTU26_04"] == "ubuntu:26.04"
+
+
 def test_allowed_github_repositories_defaults_to_unrestricted(base_env, monkeypatch):
     monkeypatch.setenv("SPACE_AUTHOR_NAME", "space-owner")
 
