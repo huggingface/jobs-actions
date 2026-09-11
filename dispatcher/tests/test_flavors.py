@@ -30,6 +30,8 @@ def test_resolve_label_returns_none_when_no_match():
     assert resolve_label([]) is None
     # Unknown hf-jobs label that isn't in the SpaceHardware enum
     assert resolve_label(["hf-jobs-not-a-real-flavor"]) is None
+    # Too many label separators
+    assert resolve_label(["hf-jobs-cpu-basic:gpu:none"]) is None
 
 
 def test_is_gpu_flavor_classification():
