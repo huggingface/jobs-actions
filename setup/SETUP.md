@@ -13,7 +13,7 @@ Estimated time: **~5 minutes**.
 ## 1. Deploy the dispatcher to an HF Space
 
 ```bash
-git clone https://github.com/abidlabs/jobs-actions
+git clone https://github.com/huggingface/jobs-actions
 cd jobs-actions
 
 # Create the Space (Docker SDK) and push the dispatcher to it.
