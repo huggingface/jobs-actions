@@ -30,6 +30,7 @@ GPU_FLAVOR_PREFIXES = (
     "inf2",
     "zero-",
     "sprx",
+    "rtx-",
 )
 
 
