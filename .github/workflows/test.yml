@@ -5,8 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+permissions: {}
+
 jobs:
   pytest:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +25,8 @@ jobs:
       - run: ruff check dispatcher/
 
   shellcheck:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
