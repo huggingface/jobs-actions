@@ -35,7 +35,7 @@ def test_resolve_label_finds_first_match():
 def test_resolve_label_returns_none_when_no_match():
     assert resolve_label(["ubuntu-latest"]) is None
     assert resolve_label([]) is None
-    # Unknown hf-jobs label that isn't in the SpaceHardware enum
+    # Unknown hf-jobs label that isn't in the JobHardware enum
     assert resolve_label(["hf-jobs-not-a-real-flavor"]) is None
     # Too many label separators
     assert resolve_label(["hf-jobs-cpu-basic:gpu:none"]) is None
