@@ -47,12 +47,23 @@ def test_is_gpu_flavor_classification():
     assert is_gpu_flavor("a10g-small")
     assert is_gpu_flavor("a10g-large")
     assert is_gpu_flavor("a100-large")
+    assert is_gpu_flavor("a100x4")
+    assert is_gpu_flavor("a100x8")
+    assert is_gpu_flavor("rtx-pro-6000")
+    assert is_gpu_flavor("rtx-pro-6000x8")
     assert is_gpu_flavor("t4-small")
     assert is_gpu_flavor("t4-medium")
     assert is_gpu_flavor("h200")
     assert is_gpu_flavor("l4x1")
     assert is_gpu_flavor("l40sx1")
     assert is_gpu_flavor("zero-a10g")
+
+
+def test_every_job_hardware_flavor_is_classified():
+    from huggingface_hub import JobHardware
+
+    for h in JobHardware:
+        assert is_gpu_flavor(h.value) == (not h.value.startswith("cpu-")), h.value
 
 
 def test_supported_labels_is_sorted_and_nonempty():
