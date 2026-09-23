@@ -22,7 +22,7 @@ LABEL_TO_FLAVOR: dict[str, str] = {
 GPU_FLAVOR_PREFIXES = (
     "t4-",
     "a10g-",
-    "a100-",
+    "a100",
     "h100",
     "h200",
     "l4",
@@ -30,6 +30,7 @@ GPU_FLAVOR_PREFIXES = (
     "inf2",
     "zero-",
     "sprx",
+    "rtx-",
 )
 
 

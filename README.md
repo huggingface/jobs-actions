@@ -54,8 +54,19 @@ PR push
 | `hf-jobs-a10g-largex2` | `a10g-largex2` | 2× A10G |
 | `hf-jobs-a10g-largex4` | `a10g-largex4` | 4× A10G |
 | `hf-jobs-a100-large` | `a100-large` | A100 GPU |
+| `hf-jobs-a100x4` | `a100x4` | 4× A100 GPU |
+| `hf-jobs-a100x8` | `a100x8` | 8× A100 GPU |
 | `hf-jobs-l40sx1` | `l40sx1` | 1× L40s |
-| `hf-jobs-h200` | `h200` | H200 GPU |
+| `hf-jobs-l40sx4` | `l40sx4` | 4× L40s |
+| `hf-jobs-l40sx8` | `l40sx8` | 8× L40s |
+| `hf-jobs-h200` | `h200` | 1× H200 GPU |
+| `hf-jobs-h200x2` | `h200x2` | 2× H200 GPU |
+| `hf-jobs-h200x4` | `h200x4` | 4× H200 GPU |
+| `hf-jobs-h200x8` | `h200x8` | 8× H200 GPU |
+| `hf-jobs-rtx-pro-6000` | `rtx-pro-6000` | 1× RTX6000PRO GPU |
+| `hf-jobs-rtx-pro-6000x2` | `rtx-pro-6000x2` | 2× RTX6000PRO GPU |
+| `hf-jobs-rtx-pro-6000x4` | `rtx-pro-6000x4` | 4× RTX6000PRO GPU |
+| `hf-jobs-rtx-pro-6000x8` | `rtx-pro-6000x8` | 8× RTX6000PRO GPU |
 
 
 ## License
