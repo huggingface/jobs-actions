@@ -4,18 +4,18 @@ Labels we recognize are prefixed `hf-jobs-`. The user puts one in their
 `runs-on:`; we pick it out of the workflow_job webhook payload and translate
 to an HF Jobs flavor string (e.g. "cpu-basic", "a10g-small").
 
-Any flavor in `huggingface_hub.SpaceHardware` is supported. The label form is
+Any flavor in `huggingface_hub.JobHardware` is supported. The label form is
 "hf-jobs-" + the flavor with dots/underscores normalised to dashes.
 """
 
 from __future__ import annotations
 
-from huggingface_hub import SpaceHardware
+from huggingface_hub import JobHardware
 
 # Build the map programmatically so we automatically pick up new flavors as
 # huggingface_hub adds them.
 LABEL_TO_FLAVOR: dict[str, str] = {
-    f"hf-jobs-{h.value}": h.value for h in SpaceHardware
+    f"hf-jobs-{h.value}": h.value for h in JobHardware
 }
 
 # Flavors that include any GPU. We use this to pick the GPU runner image.

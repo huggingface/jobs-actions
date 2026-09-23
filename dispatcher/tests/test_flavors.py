@@ -14,6 +14,13 @@ def test_label_map_includes_common_flavors():
     assert "hf-jobs-t4-small" in LABEL_TO_FLAVOR
 
 
+def test_label_map_includes_jobs_only_cpu_flavors():
+    assert LABEL_TO_FLAVOR["hf-jobs-cpu-performance"] == "cpu-performance"
+    assert LABEL_TO_FLAVOR["hf-jobs-cpu-xl"] == "cpu-xl"
+    assert not is_gpu_flavor("cpu-performance")
+    assert not is_gpu_flavor("cpu-xl")
+
+
 def test_resolve_label_finds_first_match():
     labels = resolve_label(["self-hosted", "hf-jobs-cpu-basic"])
     assert labels
@@ -28,7 +35,7 @@ def test_resolve_label_finds_first_match():
 def test_resolve_label_returns_none_when_no_match():
     assert resolve_label(["ubuntu-latest"]) is None
     assert resolve_label([]) is None
-    # Unknown hf-jobs label that isn't in the SpaceHardware enum
+    # Unknown hf-jobs label that isn't in the JobHardware enum
     assert resolve_label(["hf-jobs-not-a-real-flavor"]) is None
     # Too many label separators
     assert resolve_label(["hf-jobs-cpu-basic:gpu:none"]) is None
