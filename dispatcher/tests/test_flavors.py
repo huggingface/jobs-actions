@@ -15,7 +15,6 @@ def test_label_map_includes_common_flavors():
 
 
 def test_label_map_includes_jobs_only_cpu_flavors():
-    # These exist in JobHardware but not SpaceHardware; the README advertises them.
     assert LABEL_TO_FLAVOR["hf-jobs-cpu-performance"] == "cpu-performance"
     assert LABEL_TO_FLAVOR["hf-jobs-cpu-xl"] == "cpu-xl"
     assert not is_gpu_flavor("cpu-performance")
@@ -36,7 +35,7 @@ def test_resolve_label_finds_first_match():
 def test_resolve_label_returns_none_when_no_match():
     assert resolve_label(["ubuntu-latest"]) is None
     assert resolve_label([]) is None
-    # Unknown hf-jobs label that isn't in either hardware enum
+    # Unknown hf-jobs label that isn't in the SpaceHardware enum
     assert resolve_label(["hf-jobs-not-a-real-flavor"]) is None
     # Too many label separators
     assert resolve_label(["hf-jobs-cpu-basic:gpu:none"]) is None

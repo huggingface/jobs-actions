@@ -14,9 +14,7 @@ from __future__ import annotations
 from huggingface_hub import JobHardware, SpaceHardware
 
 # Build the map programmatically so we automatically pick up new flavors as
-# huggingface_hub adds them. Jobs run on `JobHardware` flavors, which include
-# CPU tiers such as `cpu-performance` and `cpu-xl` that `SpaceHardware` lacks;
-# `SpaceHardware` is kept in the union so no previously supported label is lost.
+# huggingface_hub adds them.
 LABEL_TO_FLAVOR: dict[str, str] = {
     f"hf-jobs-{h.value}": h.value for h in (*SpaceHardware, *JobHardware)
 }
