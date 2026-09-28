@@ -32,12 +32,12 @@ cd /actions-runner
 cleanup() {
     echo "jobs-actions runner: cleanup"
     if [[ -f .runner ]]; then
-        ./config.sh remove --token "${RUNNER_TOKEN}" 2>/dev/null || true
+        env -u RUNNER_TOKEN ./config.sh remove --token "${RUNNER_TOKEN}" 2>/dev/null || true
     fi
 }
 trap cleanup EXIT INT TERM
 
-./config.sh \
+env -u RUNNER_TOKEN ./config.sh \
     --url "https://github.com/${GH_REPO}" \
     --token "${RUNNER_TOKEN}" \
     --name "${RUNNER_NAME}" \
@@ -51,4 +51,4 @@ trap cleanup EXIT INT TERM
     --disableupdate
 
 # `run.sh` exits cleanly after one job because of `--ephemeral`.
-exec ./run.sh
+exec env -u RUNNER_TOKEN ./run.sh

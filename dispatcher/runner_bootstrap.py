@@ -63,12 +63,12 @@ sudo ./bin/installdependencies.sh >/dev/null
 
 cleanup() {{
     if [[ -f .runner ]]; then
-        sudo -u runner -E env HOME=/home/runner ./config.sh remove --token "${{RUNNER_TOKEN}}" 2>/dev/null || true
+        sudo -u runner -E env -u RUNNER_TOKEN HOME=/home/runner ./config.sh remove --token "${{RUNNER_TOKEN}}" 2>/dev/null || true
     fi
 }}
 trap cleanup EXIT INT TERM
 
-sudo -u runner -E env HOME=/home/runner ./config.sh \
+sudo -u runner -E env -u RUNNER_TOKEN HOME=/home/runner ./config.sh \
     --url "https://github.com/${{GH_REPO}}" \
     --token "${{RUNNER_TOKEN}}" \
     --name "${{RUNNER_NAME}}" \
@@ -78,5 +78,5 @@ sudo -u runner -E env HOME=/home/runner ./config.sh \
     --ephemeral --unattended --replace --disableupdate
 
 # Runner exits after one job thanks to --ephemeral.
-exec sudo -u runner -E env HOME=/home/runner ./run.sh
+exec sudo -u runner -E env -u RUNNER_TOKEN HOME=/home/runner ./run.sh
 """
