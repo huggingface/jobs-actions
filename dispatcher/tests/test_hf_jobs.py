@@ -135,3 +135,14 @@ def test_cancel_swallows_api_errors(patched_api):
     patched_api.cancel_job.side_effect = RuntimeError("already finished")
     c = _client()
     c.cancel("hfjob-abc")
+
+
+@pytest.mark.parametrize(
+    ("stage", "finished"),
+    [("COMPLETED", True), ("ERROR", True), ("CANCELED", True),
+     ("DELETED", True), ("SCHEDULING", False), ("RUNNING", False)],
+)
+def test_is_finished_recognizes_terminal_stages(patched_api, stage, finished):
+    patched_api.inspect_job.return_value.status.stage = stage
+    assert _client().is_finished("hfjob-test") is finished
+    patched_api.inspect_job.assert_called_once_with(job_id="hfjob-test", namespace="ns")

@@ -108,7 +108,7 @@ class HFJobsClient:
 
     def is_finished(self, job_id: str) -> bool:
         job = self._api.inspect_job(job_id=job_id, namespace=self._namespace)
-        return job.status.stage in {"COMPLETED", "ERROR", "CANCELED"}
+        return job.status.stage in {"COMPLETED", "ERROR", "CANCELED", "DELETED"}
 
     def cancel(self, job_id: str) -> bool:
         try:
