@@ -106,13 +106,19 @@ class HFJobsClient:
         )
         return DispatchResult(job_id=job.id, flavor=flavor, image=image)
 
-    def cancel(self, job_id: str) -> None:
+    def is_finished(self, job_id: str) -> bool:
+        job = self._api.inspect_job(job_id=job_id, namespace=self._namespace)
+        return job.status.stage in {"COMPLETED", "ERROR", "CANCELED", "DELETED"}
+
+    def cancel(self, job_id: str) -> bool:
         try:
             self._api.cancel_job(job_id=job_id, namespace=self._namespace)
             log.info("cancelled HF Job", extra={"hf_job_id": job_id})
+            return True
         except Exception as e:
             # Job might already be finished — that's fine.
             log.warning(
                 "cancel failed (job may already be done)",
                 extra={"hf_job_id": job_id, "error": str(e)},
             )
+            return False

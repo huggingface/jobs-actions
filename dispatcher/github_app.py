@@ -112,5 +112,37 @@ class GitHubAppClient:
         r.raise_for_status()
         return r.json()["token"]
 
+    async def _get(self, path: str, token: str) -> httpx.Response:
+        response = await self.http_client.get(
+            f"{GITHUB_API}/{path}",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response
+
+    async def workflow_job(self, repo: str, job_id: int, token: str) -> dict:
+        return (await self._get(f"repos/{repo}/actions/jobs/{job_id}", token)).json()
+
+    async def runners(self, repo: str, token: str) -> list[dict]:
+        runners = []
+        page = 1
+        while True:
+            response = await self._get(
+                f"repos/{repo}/actions/runners?per_page=100&page={page}", token
+            )
+            runners.extend(response.json()["runners"])
+            if "next" not in response.links:
+                return runners
+            page += 1
+
+    async def remove_runner(self, repo: str, runner_id: int, token: str) -> None:
+        response = await self.http_client.delete(
+            f"{GITHUB_API}/repos/{repo}/actions/runners/{runner_id}",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+            timeout=30,
+        )
+        response.raise_for_status()
+
     async def aclose(self) -> None:
         await self.http_client.aclose()

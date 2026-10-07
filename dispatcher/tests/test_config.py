@@ -91,3 +91,12 @@ def test_allowed_github_repositories_rejects_invalid_entries(
 
     with pytest.raises(RuntimeError, match="ALLOWED_GITHUB_REPOSITORIES"):
         Settings.from_env()
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "bad", "1.5"])
+def test_idle_timeout_rejects_invalid_values(monkeypatch, value):
+    from dispatcher.config import _positive_seconds
+
+    monkeypatch.setenv("RUNNER_IDLE_TIMEOUT", value)
+    with pytest.raises(RuntimeError, match="positive integer"):
+        _positive_seconds("RUNNER_IDLE_TIMEOUT", 300)

@@ -70,6 +70,19 @@ class FakeGH:
         )
         return self.runner_tokens_by_repo[repo]
 
+    job_status: str = "queued"
+    registered_runners: list[dict] = field(default_factory=list)
+    removals: list[int] = field(default_factory=list)
+
+    async def workflow_job(self, repo, job_id, token):
+        return {"status": self.job_status}
+
+    async def runners(self, repo, token):
+        return self.registered_runners
+
+    async def remove_runner(self, repo, runner_id, token):
+        self.removals.append(runner_id)
+
     async def aclose(self) -> None:
         pass
 
@@ -102,8 +115,12 @@ class FakeHF:
         )
         return DispatchResult(job_id=job_id, flavor=flavor, image=image)
 
-    def cancel(self, job_id: str) -> None:
+    def is_finished(self, job_id):
+        return False
+
+    def cancel(self, job_id: str) -> bool:
         self.cancels.append(job_id)
+        return True
 
 
 @pytest.fixture
@@ -126,7 +143,5 @@ def client(monkeypatch, settings, fake_gh, fake_hf):
     monkeypatch.setattr(app_mod, "GitHubAppClient", lambda **kw: fake_gh)
     monkeypatch.setattr(app_mod, "HFJobsClient", lambda **kw: fake_hf)
     app = app_mod.make_app(settings)
-    # Reset the cross-request _active_jobs map so tests don't leak.
-    app_mod._active_jobs.clear()
     with TestClient(app) as c:
         yield c

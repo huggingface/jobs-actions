@@ -25,6 +25,16 @@ def _optional(name: str, default: str) -> str:
     return os.environ.get(name, default).strip() or default
 
 
+def _positive_seconds(name: str, default: int) -> int:
+    try:
+        value = int(_optional(name, str(default)))
+        if value > 0:
+            return value
+    except ValueError:
+        pass
+    raise RuntimeError(f"{name} must be a positive integer number of seconds")
+
+
 def _kv_set(prefix: str, **defaults) -> frozenset[tuple[str, str]]:
     kv = list(defaults.items())
     for k, v in os.environ.items():
@@ -92,6 +102,7 @@ class Settings:
     allowed_github_repositories: frozenset[str] | None
     default_timeout: str  # "1h" etc.
     log_level: str
+    runner_idle_timeout: int = 300
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -115,4 +126,5 @@ class Settings:
             allowed_github_repositories=_allowed_github_repositories(),
             default_timeout=_optional("JOB_TIMEOUT", "1h"),
             log_level=_optional("LOG_LEVEL", "INFO"),
+            runner_idle_timeout=_positive_seconds("RUNNER_IDLE_TIMEOUT", 300),
         )
