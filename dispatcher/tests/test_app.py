@@ -377,3 +377,67 @@ def test_concurrent_duplicate_deliveries_launch_once(client, fake_gh, fake_hf, m
         responses = list(pool.map(lambda _: _post(client, workflow_job_payload()), range(2)))
     assert all(r.status_code == 200 for r in responses)
     assert len(fake_hf.dispatches) == 1
+
+
+def test_trackio_job_gets_replacement_without_new_webhook(client, fake_gh, fake_hf):
+    _post(client, workflow_job_payload(run_id=2, job_id=2))
+    # The runner hired for job B completes job A, just as in Trackio #703.
+    completed = workflow_job_payload(action="completed", run_id=1, job_id=1, conclusion="success")
+    completed["workflow_job"]["runner_name"] = "hfjobs-2-2"
+    _post(client, completed)
+    tracker = client.app.state.deps["tracker"]
+    assert not tracker.runners
+    assert ("owner/repo", 2) in tracker.queued
+    client.portal.call(tracker.recover, fake_gh, fake_hf)
+    assert len(fake_hf.dispatches) == 2
+    replacement = fake_hf.dispatches[-1]["runner_name"]
+    assert replacement.startswith("hfjobs-2-2-")
+    assert replacement != "hfjobs-2-2"
+    # Cold-starting replacement counts as capacity on subsequent polls.
+    client.portal.call(tracker.recover, fake_gh, fake_hf)
+    assert len(fake_hf.dispatches) == 2
+
+
+def test_busy_runner_replaced_without_missing_webhook(client, fake_gh, fake_hf):
+    _post(client, workflow_job_payload(run_id=2, job_id=2))
+    fake_gh.registered_runners = [{"name": "hfjobs-2-2", "id": 5, "status": "online", "busy": True}]
+    tracker = client.app.state.deps["tracker"]
+    client.portal.call(tracker.recover, fake_gh, fake_hf)
+    assert tracker.runners[("owner/repo", "hfjobs-2-2")].claimed
+    assert len(fake_hf.dispatches) == 2
+    assert not fake_hf.cancels
+
+
+def test_surplus_matching_runner_covers_waiting_job(client, fake_gh, fake_hf, monkeypatch):
+    _post(client, workflow_job_payload(run_id=1, job_id=1))
+    _post(client, workflow_job_payload(run_id=2, job_id=2))
+    # Runner B completed job A; runner A is still available for B.
+    completed = workflow_job_payload(action="completed", run_id=1, job_id=1, conclusion="success")
+    completed["workflow_job"]["runner_name"] = "hfjobs-2-2"
+    _post(client, completed)
+    tracker = client.app.state.deps["tracker"]
+    client.portal.call(tracker.recover, fake_gh, fake_hf)
+    assert len(fake_hf.dispatches) == 2
+
+
+def test_recovery_stops_when_job_has_started_elsewhere(client, fake_gh, fake_hf):
+    _post(client, workflow_job_payload())
+    tracker = client.app.state.deps["tracker"]
+    tracker.runners.clear()
+    fake_gh.job_status = "in_progress"
+    client.portal.call(tracker.recover, fake_gh, fake_hf)
+    assert not tracker.queued
+    assert len(fake_hf.dispatches) == 1
+
+
+def test_requeued_job_retains_demand_while_original_runner_is_busy(client, fake_gh, fake_hf):
+    _post(client, workflow_job_payload())
+    progress = workflow_job_payload(action="in_progress")
+    progress["workflow_job"]["runner_name"] = "hfjobs-100-200"
+    _post(client, progress)
+    tracker = client.app.state.deps["tracker"]
+    assert not tracker.queued
+    _post(client, workflow_job_payload())
+    client.portal.call(tracker.recover, fake_gh, fake_hf)
+    assert len(fake_hf.dispatches) == 2
+    assert fake_hf.dispatches[-1]["runner_name"] != "hfjobs-100-200"

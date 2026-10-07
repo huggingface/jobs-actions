@@ -79,3 +79,80 @@ async def test_finished_hf_job_is_forgotten(tracker, fake_gh, fake_hf, monkeypat
     await tracker.reap(fake_gh, fake_hf)
     assert not tracker.runners
     assert not fake_hf.cancels
+
+
+@pytest.fixture
+def pending(tracker):
+    from dispatcher.runners import QueuedJob
+
+    tracker.queued[("owner/repo", 2)] = QueuedJob(
+        "owner/repo", 1, 2, 2, "hf-jobs-cpu-basic", "hf-jobs-cpu-basic", "ubuntu:24.04",
+    )
+    return tracker.queued[("owner/repo", 2)]
+
+
+async def test_failed_compute_is_replaced(tracker, pending, fake_gh, fake_hf, monkeypatch):
+    monkeypatch.setattr(fake_hf, "is_finished", lambda job_id: job_id == "hf1")
+    await tracker.recover(fake_gh, fake_hf)
+    assert len(fake_hf.dispatches) == 1
+    assert ("owner/repo", "hfjobs-1-1") not in tracker.runners
+
+
+async def test_inventory_failure_never_launches_speculative_replacement(tracker, pending, fake_gh, fake_hf):
+    fake_gh.runners = AsyncMock(side_effect=RuntimeError("unavailable"))
+    await tracker.recover(fake_gh, fake_hf)
+    assert not fake_hf.dispatches
+    assert tracker.queued
+
+
+async def test_failed_dispatch_backs_off_then_recovers(tracker, pending, fake_gh, fake_hf, monkeypatch):
+    tracker.runners.clear()
+    original = fake_hf.dispatch
+    calls = []
+
+    def fail(**kwargs):
+        calls.append(kwargs)
+        raise RuntimeError("temporarily unavailable")
+
+    monkeypatch.setattr(fake_hf, "dispatch", fail)
+    monkeypatch.setattr("dispatcher.runners.time.monotonic", lambda: 100)
+    await tracker.recover(fake_gh, fake_hf)
+    await tracker.recover(fake_gh, fake_hf)
+    assert len(calls) == 1
+    monkeypatch.setattr("dispatcher.runners.time.monotonic", lambda: 131)
+    monkeypatch.setattr(fake_hf, "dispatch", original)
+    await tracker.recover(fake_gh, fake_hf)
+    assert len(fake_hf.dispatches) == 1
+
+
+async def test_status_changes_during_token_mint_do_not_launch(tracker, pending, fake_gh, fake_hf):
+    tracker.runners.clear()
+    fake_gh.workflow_job = AsyncMock(side_effect=[{"status": "queued"}, {"status": "completed"}])
+    await tracker.recover(fake_gh, fake_hf)
+    assert not fake_hf.dispatches
+    assert not tracker.queued
+
+
+async def test_capacity_is_not_shared_across_labels(tracker, pending, fake_gh, fake_hf):
+    next(iter(tracker.runners.values())).label = "hf-jobs-t4-small"
+    await tracker.recover(fake_gh, fake_hf)
+    assert len(fake_hf.dispatches) == 1
+
+
+async def test_each_starting_runner_covers_only_one_queued_job(tracker, pending, fake_gh, fake_hf):
+    from dataclasses import replace
+
+    next(iter(tracker.runners.values())).label = pending.label
+    tracker.queued[("owner/repo", 3)] = replace(pending, job_id=3)
+    await tracker.recover(fake_gh, fake_hf)
+    assert len(fake_hf.dispatches) == 1
+    await tracker.recover(fake_gh, fake_hf)
+    assert len(fake_hf.dispatches) == 1
+
+
+async def test_concurrent_recovery_does_not_duplicate_capacity(tracker, pending, fake_gh, fake_hf):
+    import asyncio
+
+    tracker.runners.clear()
+    await asyncio.gather(tracker.recover(fake_gh, fake_hf), tracker.recover(fake_gh, fake_hf))
+    assert len(fake_hf.dispatches) == 1

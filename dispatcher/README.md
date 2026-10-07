@@ -58,8 +58,19 @@ Duplicate queued deliveries are serialized and deduplicated while a runner is
 tracked. Before provisioning, the dispatcher also checks the current GitHub job
 status to skip delayed deliveries for jobs that have already started or finished.
 
+Every 30 seconds, the dispatcher also rechecks jobs received through queued
+webhooks. If a runner has taken a different job or exited, it launches enough
+replacements to cover the remaining queue. Idle and booting runners with the
+same label count toward capacity; busy runners do not. Replacement names are
+unique so they cannot replace a runner executing another job. Failed dispatches
+are retried with a delay, and failed status/inventory requests do not cause
+speculative launches.
+
 Tracking is in memory and requires a single dispatcher process. A restart loses
-tracking of existing runners; those jobs still rely on the HF `JOB_TIMEOUT`.
+both queued demand and existing runner tracking; jobs queued before the restart
+need a new webhook/rerun to enter tracking, and existing HF jobs still rely on
+`JOB_TIMEOUT`. Jobs whose queued webhook never reached this process are not
+discovered by this reconciler.
 The idle deadline starts when reconciliation first observes the registered runner
 online, so image pulls and bootstrap time do not consume it. This cleanup does
 not change HF's enforcement of the overall job timeout.

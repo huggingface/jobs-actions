@@ -10,7 +10,7 @@ The webhook flow:
     2. Filter for `workflow_job.queued` / `workflow_job.completed`.
     3. On queued: find an `hf-jobs-*` label, mint a runner token, dispatch.
     4. Track the actual runner in start/completion events.
-    5. Periodically retire surplus idle runners before cancelling their HF Jobs.
+    5. Periodically retire surplus idle runners and replace missing queue capacity.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from .config import Settings
 from .flavors import LABEL_TO_FLAVOR, is_gpu_flavor, resolve_label, supported_labels
 from .github_app import GitHubAppClient, verify_signature
 from .hf_jobs import HFJobsClient
-from .runners import Runner, RunnerTracker
+from .runners import QueuedJob, Runner, RunnerTracker
 
 log = logging.getLogger("jobs_actions.dispatcher")
 
@@ -212,12 +212,20 @@ async def _handle_workflow_job(
 
         runner_name = f"hfjobs-{run_id}-{job_id}"
         runner_key = (repo.lower(), runner_name)
-        if runner_key in tracker.runners:
+        if (repo.lower(), job_id) in tracker.queued:
             return {"ok": True, "skipped": "runner already provisioned"}
         inst_token = await gh.installation_token(installation_id)
         current = await gh.workflow_job(repo, job_id, inst_token)
         if current["status"] != "queued":
             return {"ok": True, "skipped": "job no longer queued"}
+        tracker.queued[(repo.lower(), job_id)] = QueuedJob(
+            repo.lower(), installation_id, run_id, job_id, gh_label,
+            hf_label, runner_images[image_label],
+        )
+        if runner_key in tracker.runners:
+            # A requeued job still needs demand tracking even if its original
+            # runner is busy. Reconciliation will allocate a fresh replacement.
+            return {"ok": True, "skipped": "runner already provisioned"}
         runner_token = await gh.runner_registration_token(repo, inst_token)
         result = await asyncio.to_thread(
             hf.dispatch,
@@ -230,7 +238,7 @@ async def _handle_workflow_job(
         )
 
         tracker.runners[runner_key] = Runner(
-            repo.lower(), installation_id, runner_name, result.job_id
+            repo.lower(), installation_id, runner_name, result.job_id, label=gh_label
         )
 
         log.info(
@@ -253,6 +261,7 @@ async def _handle_workflow_job(
         }
 
     if action in {"completed", "in_progress"}:
+        tracker.queued.pop((repo, job_id), None)
         # The runner that accepted this job may have been provisioned for a
         # completely different job. Never cancel by the original queued key.
         runner_key = (repo, wj.get("runner_name"))
