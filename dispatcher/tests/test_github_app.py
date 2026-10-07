@@ -117,3 +117,31 @@ async def test_runner_registration_token(rsa_keypair):
     token = await client.runner_registration_token("owner/repo", "instok")
     assert token == "AAAAA-RUNNER-TOK"
     await client.aclose()
+
+
+async def test_workflow_job_and_paginated_runners(rsa_keypair):
+    def handler(request):
+        assert request.headers["Authorization"] == "Bearer instok"
+        if request.url.path.endswith("/jobs/123"):
+            return httpx.Response(200, json={"status": "in_progress"})
+        page = request.url.params["page"]
+        headers = {"Link": '<https://api.github.com/repos/o/r/actions/runners?page=2>; rel="next"'} if page == "1" else {}
+        return httpx.Response(200, json={"runners": [{"id": int(page)}]}, headers=headers)
+
+    client = GitHubAppClient("42", rsa_keypair[0], httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    assert await client.workflow_job("o/r", 123, "instok") == {"status": "in_progress"}
+    assert await client.runners("o/r", "instok") == [{"id": 1}, {"id": 2}]
+    await client.aclose()
+
+
+@pytest.mark.parametrize("status", [400, 401, 404, 409, 422, 500])
+async def test_runner_removal_rejection_propagates(rsa_keypair, status):
+    def handler(request):
+        assert request.method == "DELETE"
+        assert request.url.path == "/repos/o/r/actions/runners/42"
+        return httpx.Response(status)
+
+    client = GitHubAppClient("42", rsa_keypair[0], httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    with pytest.raises(httpx.HTTPStatusError):
+        await client.remove_runner("o/r", 42, "instok")
+    await client.aclose()
