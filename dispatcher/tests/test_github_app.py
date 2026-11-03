@@ -10,6 +10,7 @@ import pytest
 
 from dispatcher.github_app import (
     GitHubAppClient,
+    RunnerDownload,
     make_app_jwt,
     verify_signature,
 )
@@ -144,4 +145,53 @@ async def test_runner_removal_rejection_propagates(rsa_keypair, status):
     client = GitHubAppClient("42", rsa_keypair[0], httpx.AsyncClient(transport=httpx.MockTransport(handler)))
     with pytest.raises(httpx.HTTPStatusError):
         await client.remove_runner("o/r", 42, "instok")
+    await client.aclose()
+
+
+
+@pytest.mark.asyncio
+async def test_runner_downloads(rsa_keypair):
+    pem, _ = rsa_keypair
+    responses = {"owner/repo": (200, [
+        {"os": "osx", "architecture": "arm64", "download_url": "https://x/osx", "sha256_checksum": "aa"},
+        {"os": "linux", "architecture": "x64", "download_url": "https://x/x64", "sha256_checksum": "bb"},
+    ]), "empty/repo": (200, []), "broken/repo": (500, {})}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        repo = request.url.path.split("/")[2] + "/" + request.url.path.split("/")[3]
+        status, body = responses[repo]
+        return httpx.Response(status, json=body)
+
+    client = GitHubAppClient(
+        app_id="42",
+        private_key=pem,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    # Nothing resolved yet: callers fall back to the pinned version.
+    assert await client.runner_downloads("broken/repo", "instok") == {}
+
+    expected = {"x64": RunnerDownload(url="https://x/x64", sha256="bb")}
+    assert await client.runner_downloads("owner/repo", "instok") == expected
+    # Cached across repos, and an empty or failed refresh keeps the last good builds.
+    assert await client.runner_downloads("broken/repo", "instok") == expected
+    client._runner_downloads_expires_at = time.time() - 1
+    assert await client.runner_downloads("empty/repo", "instok") == expected
+    assert await client.runner_downloads("broken/repo", "instok") == expected
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_runner_downloads_pinned_skips_lookup(rsa_keypair):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("pinned version must not call the downloads API")
+
+    client = GitHubAppClient(
+        app_id="42",
+        private_key=rsa_keypair[0],
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        pinned_runner_version="2.330.0",
+    )
+    downloads = await client.runner_downloads("owner/repo", "instok")
+    assert downloads["x64"].url.endswith("/v2.330.0/actions-runner-linux-x64-2.330.0.tar.gz")
+    assert downloads["arm64"].sha256 == ""
     await client.aclose()

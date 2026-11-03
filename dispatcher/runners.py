@@ -148,10 +148,12 @@ class RunnerTracker:
                             if (await gh.workflow_job(repo, job.job_id, token))["status"] != "queued":
                                 self.queued.pop((repo, job.job_id), None)
                                 continue
+                            runner_downloads = await gh.runner_downloads(repo, token)
                             result = await asyncio.to_thread(
                                 hf.dispatch, label=job.flavor_label, repo=repo,
                                 image=job.image, runner_token=runner_token,
                                 runner_name=name, runner_label=job.label,
+                                runner_downloads=runner_downloads,
                             )
                             self.runners[(repo, name)] = Runner(
                                 repo, job.installation_id, name, result.job_id, label=job.label,

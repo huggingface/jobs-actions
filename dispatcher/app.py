@@ -61,7 +61,11 @@ def make_app(settings: Settings | None = None) -> FastAPI:
             level=s.log_level,
             format="%(asctime)s %(levelname)s %(name)s %(message)s",
         )
-        gh = GitHubAppClient(app_id=s.gh_app_id, private_key=s.gh_app_private_key)
+        gh = GitHubAppClient(
+            app_id=s.gh_app_id,
+            private_key=s.gh_app_private_key,
+            pinned_runner_version=s.runner_version,
+        )
         hf = HFJobsClient(
             token=s.hf_token,
             namespace=s.hf_namespace,
@@ -70,7 +74,11 @@ def make_app(settings: Settings | None = None) -> FastAPI:
         tracker = RunnerTracker(s.runner_idle_timeout)
         app.state.deps = {"settings": s, "gh": gh, "hf": hf, "tracker": tracker}
         watcher = asyncio.create_task(tracker.watch(gh, hf))
-        log.info("dispatcher ready (namespace=%s)", s.hf_namespace)
+        log.info(
+            "dispatcher ready (namespace=%s, runner=%s)",
+            s.hf_namespace,
+            s.runner_version or "latest from GitHub",
+        )
         try:
             yield
         finally:
@@ -227,6 +235,7 @@ async def _handle_workflow_job(
             # runner is busy. Reconciliation will allocate a fresh replacement.
             return {"ok": True, "skipped": "runner already provisioned"}
         runner_token = await gh.runner_registration_token(repo, inst_token)
+        runner_downloads = await gh.runner_downloads(repo, inst_token)
         result = await asyncio.to_thread(
             hf.dispatch,
             label=hf_label,
@@ -235,6 +244,7 @@ async def _handle_workflow_job(
             runner_token=runner_token,
             runner_name=runner_name,
             runner_label=gh_label,
+            runner_downloads=runner_downloads,
         )
 
         tracker.runners[runner_key] = Runner(

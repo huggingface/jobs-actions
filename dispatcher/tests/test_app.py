@@ -144,7 +144,7 @@ def test_queued_with_hf_label_dispatches(client, fake_gh, fake_hf, settings):
 
     # GitHub side: installation token then runner token
     ops = [c["op"] for c in fake_gh.calls]
-    assert ops == ["installation_token", "runner_registration_token"]
+    assert ops == ["installation_token", "runner_registration_token", "runner_downloads"]
 
 
 def test_queued_with_gpu_label_dispatches_gpu_image(client, fake_hf, settings):

@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from dispatcher.github_app import RunnerDownload
 from dispatcher.hf_jobs import HFJobsClient
 
 
@@ -75,6 +76,27 @@ def test_dispatch_with_prebuilt_image_uses_entrypoint(patched_api):
     )
     kw = patched_api.run_job.call_args.kwargs
     assert kw["command"] == ["/entrypoint.sh"]
+
+
+def test_dispatch_passes_resolved_runner_downloads_to_bootstrap(patched_api):
+    c = _client()
+    c.dispatch(
+        label="hf-jobs-cpu-basic",
+        repo="o/r",
+        image="ubuntu:22.04",
+        runner_token="tok",
+        runner_name="hfjobs-1-2",
+        runner_label="",
+        runner_downloads={
+            "x64": RunnerDownload(url="https://x/x64.tar.gz", sha256="bb"),
+            "arm64": RunnerDownload(url="https://x/arm64.tar.gz", sha256="cc"),
+        },
+    )
+    env = patched_api.run_job.call_args.kwargs["env"]
+    assert env["RUNNER_URL_X64"] == "https://x/x64.tar.gz"
+    assert env["RUNNER_SHA256_X64"] == "bb"
+    assert env["RUNNER_URL_ARM64"] == "https://x/arm64.tar.gz"
+    assert env["RUNNER_SHA256_ARM64"] == "cc"
 
 
 def test_runner_token_passes_via_secrets_not_env(patched_api):

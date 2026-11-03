@@ -100,3 +100,11 @@ def test_idle_timeout_rejects_invalid_values(monkeypatch, value):
     monkeypatch.setenv("RUNNER_IDLE_TIMEOUT", value)
     with pytest.raises(RuntimeError, match="positive integer"):
         _positive_seconds("RUNNER_IDLE_TIMEOUT", 300)
+
+
+def test_runner_version_defaults_to_unpinned_and_accepts_v_prefix(base_env, monkeypatch):
+    monkeypatch.setenv("HF_NAMESPACE", "ns")
+    monkeypatch.delenv("RUNNER_VERSION", raising=False)
+    assert Settings.from_env().runner_version is None
+    monkeypatch.setenv("RUNNER_VERSION", "v2.338.2")
+    assert Settings.from_env().runner_version == "2.338.2"

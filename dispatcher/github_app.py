@@ -31,6 +31,10 @@ INSTALLATION_TOKEN_REFRESH_AT = 50 * 60
 
 GITHUB_API = "https://api.github.com"
 
+# The runner build GitHub serves changes roughly monthly; an hour of staleness
+# is harmless and keeps us to one lookup per hour instead of one per dispatch.
+RUNNER_DOWNLOADS_TTL = 60 * 60
+
 
 def verify_signature(body: bytes, signature_header: str, secret: bytes) -> bool:
     """Constant-time verify of GitHub's X-Hub-Signature-256 header.
@@ -62,11 +66,21 @@ class _CachedToken:
 
 
 @dataclass
+class RunnerDownload:
+    url: str
+    sha256: str
+
+
+@dataclass
 class GitHubAppClient:
     app_id: str
     private_key: str
     http_client: httpx.AsyncClient = field(default_factory=httpx.AsyncClient)
     _installation_tokens: dict[int, _CachedToken] = field(default_factory=dict)
+    # Operator pin (RUNNER_VERSION). When set, skip the downloads lookup.
+    pinned_runner_version: str | None = None
+    _runner_downloads: dict[str, RunnerDownload] = field(default_factory=dict)
+    _runner_downloads_expires_at: float = 0.0
 
     async def installation_token(self, installation_id: int) -> str:
         """Return a fresh-enough installation access token, minting if needed."""
@@ -111,6 +125,52 @@ class GitHubAppClient:
         )
         r.raise_for_status()
         return r.json()["token"]
+
+    async def runner_downloads(
+        self, repo: str, installation_token: str
+    ) -> dict[str, RunnerDownload]:
+        """Return the Linux runner builds GitHub currently serves, keyed by arch.
+
+        This is the build GitHub expects runners to be on, so following it
+        keeps `--disableupdate` runners from being rejected as outdated. The
+        result is the same for every repo, so it's cached globally. Returns
+        `{}` on failure; the bootstrap then falls back to its pinned version.
+
+        With `pinned_runner_version` set, returns that release's builds instead
+        (no checksum, since only the API lookup provides one).
+        """
+        if self.pinned_runner_version:
+            v = self.pinned_runner_version
+            return {
+                arch: RunnerDownload(
+                    url=f"https://github.com/actions/runner/releases/download/v{v}/actions-runner-linux-{arch}-{v}.tar.gz",
+                    sha256="",
+                )
+                for arch in ("x64", "arm64")
+            }
+        if self._runner_downloads and self._runner_downloads_expires_at > time.time():
+            return self._runner_downloads
+        try:
+            response = await self._get(
+                f"repos/{repo}/actions/runners/downloads", installation_token
+            )
+            downloads = {
+                d["architecture"]: RunnerDownload(
+                    url=d["download_url"], sha256=d["sha256_checksum"]
+                )
+                for d in response.json()
+                if d.get("os") == "linux" and d.get("sha256_checksum")
+            }
+        except Exception:
+            log.exception("failed to resolve runner downloads; using pinned fallback")
+            return self._runner_downloads
+        if not downloads:
+            # Seen for some repos (e.g. forks with Actions disabled). Keep the
+            # last good answer rather than letting one repo clear it for all.
+            return self._runner_downloads
+        self._runner_downloads = downloads
+        self._runner_downloads_expires_at = time.time() + RUNNER_DOWNLOADS_TTL
+        return downloads
 
     async def _get(self, path: str, token: str) -> httpx.Response:
         response = await self.http_client.get(

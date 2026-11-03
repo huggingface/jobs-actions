@@ -3,7 +3,9 @@
 This script is fed to `bash -c` as the container command. It:
 
 1. Installs the OS packages the GHA runner needs.
-2. Downloads the pinned `actions/runner` release.
+2. Downloads the `actions/runner` build GitHub currently serves (resolved by
+   the dispatcher and passed in as `RUNNER_URL_*` / `RUNNER_SHA256_*`), or the
+   pinned fallback below if that lookup failed.
 3. Configures the runner ephemerally with the credentials we passed in env.
 4. Runs the runner for one job, then exits.
 
@@ -16,8 +18,10 @@ fork this repo and point `RUNNER_IMAGE_*` at your own prebuilt image.
 
 from __future__ import annotations
 
-# Pin the GitHub Actions runner version. Bump in lockstep with whatever
-# GitHub is currently requiring; older versions get rejected during config.
+# Fallback GitHub Actions runner version, used only when the dispatcher could
+# not resolve the current build from GitHub's runner downloads API. Runners
+# run with --disableupdate, so GitHub rejects versions that fall too far
+# behind; normal dispatches don't depend on this pin staying current.
 RUNNER_VERSION = "2.338.2"
 
 BOOTSTRAP = rf"""
@@ -28,7 +32,7 @@ set -euo pipefail
 : "${{RUNNER_LABELS:?missing RUNNER_LABELS}}"
 RUNNER_NAME="${{RUNNER_NAME:-hfjobs-$(hostname)-$(date +%s)}}"
 
-echo "[jobs-actions] bootstrapping runner v{RUNNER_VERSION}"
+echo "[jobs-actions] bootstrapping runner"
 echo "[jobs-actions] repo=${{GH_REPO}} labels=${{RUNNER_LABELS}} name=${{RUNNER_NAME}}"
 
 export DEBIAN_FRONTEND=noninteractive
@@ -46,13 +50,34 @@ cd /actions-runner
 
 # Detect architecture for the runner download URL.
 case "$(uname -m)" in
-    x86_64)  ARCH=x64 ;;
-    aarch64) ARCH=arm64 ;;
+    x86_64)
+        ARCH=x64
+        RUNNER_URL="${{RUNNER_URL_X64:-}}"
+        RUNNER_SHA256="${{RUNNER_SHA256_X64:-}}"
+        ;;
+    aarch64)
+        ARCH=arm64
+        RUNNER_URL="${{RUNNER_URL_ARM64:-}}"
+        RUNNER_SHA256="${{RUNNER_SHA256_ARM64:-}}"
+        ;;
     *) echo "unsupported arch: $(uname -m)"; exit 1 ;;
 esac
 
-curl -fsSL -o runner.tar.gz \
-    "https://github.com/actions/runner/releases/download/v{RUNNER_VERSION}/actions-runner-linux-${{ARCH}}-{RUNNER_VERSION}.tar.gz"
+if [[ -z "${{RUNNER_URL}}" ]]; then
+    echo "[jobs-actions] no resolved runner build; falling back to pinned v{RUNNER_VERSION}"
+    RUNNER_URL="https://github.com/actions/runner/releases/download/v{RUNNER_VERSION}/actions-runner-linux-${{ARCH}}-{RUNNER_VERSION}.tar.gz"
+fi
+echo "[jobs-actions] downloading ${{RUNNER_URL}}"
+
+curl -fsSL -o runner.tar.gz "${{RUNNER_URL}}"
+# Compare explicitly: `sha256sum -c` only warns (exit 0) on a malformed line.
+if [[ -n "${{RUNNER_SHA256}}" ]]; then
+    ACTUAL_SHA256="$(sha256sum runner.tar.gz | cut -d' ' -f1)"
+    if [[ "${{ACTUAL_SHA256}}" != "${{RUNNER_SHA256}}" ]]; then
+        echo "[jobs-actions] runner checksum mismatch: expected ${{RUNNER_SHA256}}, got ${{ACTUAL_SHA256}}"
+        exit 1
+    fi
+fi
 tar xzf runner.tar.gz
 rm runner.tar.gz
 chown -R runner:runner /actions-runner
