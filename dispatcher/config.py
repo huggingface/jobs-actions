@@ -8,6 +8,7 @@ fails lazily on first use.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 
 
@@ -62,6 +63,15 @@ def _allowed_github_repositories() -> frozenset[str] | None:
     return repositories
 
 
+def _runner_version() -> str | None:
+    value = os.environ.get("RUNNER_VERSION", "").strip().removeprefix("v")
+    if not value:
+        return None
+    if not re.fullmatch(r"\d+\.\d+\.\d+", value):
+        raise RuntimeError(f"RUNNER_VERSION must look like 2.338.2, got {value!r}")
+    return value
+
+
 def _hf_namespace() -> str:
     value = os.environ.get("HF_NAMESPACE", "").strip()
     if value:
@@ -103,6 +113,7 @@ class Settings:
     default_timeout: str  # "1h" etc.
     log_level: str
     runner_idle_timeout: int = 300
+    runner_version: str | None = None  # pin; None follows GitHub
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -127,4 +138,5 @@ class Settings:
             default_timeout=_optional("JOB_TIMEOUT", "1h"),
             log_level=_optional("LOG_LEVEL", "INFO"),
             runner_idle_timeout=_positive_seconds("RUNNER_IDLE_TIMEOUT", 300),
+            runner_version=_runner_version(),
         )

@@ -36,6 +36,7 @@ Set these as regular **Space variables**:
 | `RUNNER_IMAGE_GPU` | (optional) Default Docker image for GPU jobs based on flavor, can also be explicitly selected with `:gpu` |
 | `RUNNER_IDLE_TIMEOUT` | Seconds a registered, online runner may wait for its first job (default `300`). Checked every 30 seconds. |
 | `JOB_TIMEOUT` | (optional) Default per-job timeout, e.g. `1h` |
+| `RUNNER_VERSION` | (optional) Pin the GitHub Actions runner, e.g. `2.338.2`. By default the dispatcher uses whatever build GitHub currently serves. If you pin, you own the bumps: GitHub rejects runners that fall too far behind. |
 
 See [`setup/SETUP.md`](https://github.com/abidlabs/jobs-actions/blob/main/setup/SETUP.md) for the full walkthrough.
 

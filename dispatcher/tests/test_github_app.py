@@ -178,3 +178,20 @@ async def test_runner_downloads(rsa_keypair):
     assert await client.runner_downloads("empty/repo", "instok") == expected
     assert await client.runner_downloads("broken/repo", "instok") == expected
     await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_runner_downloads_pinned_skips_lookup(rsa_keypair):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("pinned version must not call the downloads API")
+
+    client = GitHubAppClient(
+        app_id="42",
+        private_key=rsa_keypair[0],
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        pinned_runner_version="2.330.0",
+    )
+    downloads = await client.runner_downloads("owner/repo", "instok")
+    assert downloads["x64"].url.endswith("/v2.330.0/actions-runner-linux-x64-2.330.0.tar.gz")
+    assert downloads["arm64"].sha256 == ""
+    await client.aclose()

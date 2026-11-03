@@ -85,7 +85,8 @@ class HFJobsClient:
             # falls back to its pinned version when these are absent.
             for arch, download in (runner_downloads or {}).items():
                 env[f"RUNNER_URL_{arch.upper()}"] = download.url
-                env[f"RUNNER_SHA256_{arch.upper()}"] = download.sha256
+                if download.sha256:
+                    env[f"RUNNER_SHA256_{arch.upper()}"] = download.sha256
 
         job = self._api.run_job(
             image=image,

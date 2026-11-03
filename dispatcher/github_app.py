@@ -77,6 +77,8 @@ class GitHubAppClient:
     private_key: str
     http_client: httpx.AsyncClient = field(default_factory=httpx.AsyncClient)
     _installation_tokens: dict[int, _CachedToken] = field(default_factory=dict)
+    # Operator pin (RUNNER_VERSION). When set, skip the downloads lookup.
+    pinned_runner_version: str | None = None
     _runner_downloads: dict[str, RunnerDownload] = field(default_factory=dict)
     _runner_downloads_expires_at: float = 0.0
 
@@ -133,7 +135,19 @@ class GitHubAppClient:
         keeps `--disableupdate` runners from being rejected as outdated. The
         result is the same for every repo, so it's cached globally. Returns
         `{}` on failure; the bootstrap then falls back to its pinned version.
+
+        With `pinned_runner_version` set, returns that release's builds instead
+        (no checksum, since only the API lookup provides one).
         """
+        if self.pinned_runner_version:
+            v = self.pinned_runner_version
+            return {
+                arch: RunnerDownload(
+                    url=f"https://github.com/actions/runner/releases/download/v{v}/actions-runner-linux-{arch}-{v}.tar.gz",
+                    sha256="",
+                )
+                for arch in ("x64", "arm64")
+            }
         if self._runner_downloads and self._runner_downloads_expires_at > time.time():
             return self._runner_downloads
         try:
