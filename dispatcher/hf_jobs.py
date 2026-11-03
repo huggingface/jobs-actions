@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from huggingface_hub import HfApi
 
 from .flavors import LABEL_TO_FLAVOR
+from .github_app import RunnerDownload
 from .runner_bootstrap import BOOTSTRAP
 
 log = logging.getLogger(__name__)
@@ -57,6 +59,7 @@ class HFJobsClient:
         runner_token: str,
         runner_name: str,
         runner_label: str,
+        runner_downloads: Mapping[str, RunnerDownload] | None = None,
     ) -> DispatchResult:
         flavor = LABEL_TO_FLAVOR[label]
 
@@ -78,6 +81,11 @@ class HFJobsClient:
             command = ["/entrypoint.sh"]
         else:
             command = ["bash", "-c", BOOTSTRAP]
+            # The bootstrap picks the build for the container's arch and
+            # falls back to its pinned version when these are absent.
+            for arch, download in (runner_downloads or {}).items():
+                env[f"RUNNER_URL_{arch.upper()}"] = download.url
+                env[f"RUNNER_SHA256_{arch.upper()}"] = download.sha256
 
         job = self._api.run_job(
             image=image,

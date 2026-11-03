@@ -227,6 +227,7 @@ async def _handle_workflow_job(
             # runner is busy. Reconciliation will allocate a fresh replacement.
             return {"ok": True, "skipped": "runner already provisioned"}
         runner_token = await gh.runner_registration_token(repo, inst_token)
+        runner_downloads = await gh.runner_downloads(repo, inst_token)
         result = await asyncio.to_thread(
             hf.dispatch,
             label=hf_label,
@@ -235,6 +236,7 @@ async def _handle_workflow_job(
             runner_token=runner_token,
             runner_name=runner_name,
             runner_label=gh_label,
+            runner_downloads=runner_downloads,
         )
 
         tracker.runners[runner_key] = Runner(

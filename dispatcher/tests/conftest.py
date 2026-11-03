@@ -70,6 +70,10 @@ class FakeGH:
         )
         return self.runner_tokens_by_repo[repo]
 
+    async def runner_downloads(self, repo: str, installation_token: str) -> dict:
+        self.calls.append({"op": "runner_downloads", "repo": repo})
+        return {}
+
     job_status: str = "queued"
     registered_runners: list[dict] = field(default_factory=list)
     removals: list[int] = field(default_factory=list)
@@ -94,7 +98,15 @@ class FakeHF:
         self._next_id = 1
 
     def dispatch(
-        self, *, label: str, repo: str, image: str, runner_token: str, runner_name: str, runner_label: str
+        self,
+        *,
+        label: str,
+        repo: str,
+        image: str,
+        runner_token: str,
+        runner_name: str,
+        runner_label: str,
+        runner_downloads: dict | None = None,
     ) -> DispatchResult:
         from dispatcher.flavors import LABEL_TO_FLAVOR
 
