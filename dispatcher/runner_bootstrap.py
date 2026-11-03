@@ -18,7 +18,7 @@ from __future__ import annotations
 
 # Pin the GitHub Actions runner version. Bump in lockstep with whatever
 # GitHub is currently requiring; older versions get rejected during config.
-RUNNER_VERSION = "2.336.0"
+RUNNER_VERSION = "2.338.2"
 
 BOOTSTRAP = rf"""
 set -euo pipefail
