@@ -70,8 +70,13 @@ fi
 echo "[jobs-actions] downloading ${{RUNNER_URL}}"
 
 curl -fsSL -o runner.tar.gz "${{RUNNER_URL}}"
+# Compare explicitly: `sha256sum -c` only warns (exit 0) on a malformed line.
 if [[ -n "${{RUNNER_SHA256}}" ]]; then
-    echo "${{RUNNER_SHA256}}  runner.tar.gz" | sha256sum -c --quiet -
+    ACTUAL_SHA256="$(sha256sum runner.tar.gz | cut -d' ' -f1)"
+    if [[ "${{ACTUAL_SHA256}}" != "${{RUNNER_SHA256}}" ]]; then
+        echo "[jobs-actions] runner checksum mismatch: expected ${{RUNNER_SHA256}}, got ${{ACTUAL_SHA256}}"
+        exit 1
+    fi
 fi
 tar xzf runner.tar.gz
 rm runner.tar.gz
