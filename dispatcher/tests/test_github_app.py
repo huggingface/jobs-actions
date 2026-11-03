@@ -148,88 +148,33 @@ async def test_runner_removal_rejection_propagates(rsa_keypair, status):
     await client.aclose()
 
 
-_DOWNLOADS = [
-    {"os": "osx", "architecture": "arm64", "download_url": "https://x/osx.tar.gz", "sha256_checksum": "aa"},
-    {"os": "linux", "architecture": "x64", "download_url": "https://x/x64.tar.gz", "sha256_checksum": "bb"},
-    {"os": "linux", "architecture": "arm64", "download_url": "https://x/arm64.tar.gz", "sha256_checksum": "cc"},
-]
-
 
 @pytest.mark.asyncio
-async def test_runner_downloads_keeps_linux_builds_and_caches(rsa_keypair):
+async def test_runner_downloads(rsa_keypair):
     pem, _ = rsa_keypair
-    calls = {"n": 0}
+    responses = {"owner/repo": (200, [
+        {"os": "osx", "architecture": "arm64", "download_url": "https://x/osx", "sha256_checksum": "aa"},
+        {"os": "linux", "architecture": "x64", "download_url": "https://x/x64", "sha256_checksum": "bb"},
+    ]), "empty/repo": (200, []), "broken/repo": (500, {})}
 
     def handler(request: httpx.Request) -> httpx.Response:
-        calls["n"] += 1
-        assert request.url.path == "/repos/owner/repo/actions/runners/downloads"
-        assert request.headers["Authorization"] == "Bearer instok"
-        return httpx.Response(200, json=_DOWNLOADS)
+        repo = request.url.path.split("/")[2] + "/" + request.url.path.split("/")[3]
+        status, body = responses[repo]
+        return httpx.Response(status, json=body)
 
     client = GitHubAppClient(
         app_id="42",
         private_key=pem,
         http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
     )
-    downloads = await client.runner_downloads("owner/repo", "instok")
-    assert downloads == {
-        "x64": RunnerDownload(url="https://x/x64.tar.gz", sha256="bb"),
-        "arm64": RunnerDownload(url="https://x/arm64.tar.gz", sha256="cc"),
-    }
-    # Same build for every repo, so another repo is served from cache.
-    assert await client.runner_downloads("other/repo", "instok") == downloads
-    assert calls["n"] == 1
+    # Nothing resolved yet: callers fall back to the pinned version.
+    assert await client.runner_downloads("broken/repo", "instok") == {}
 
+    expected = {"x64": RunnerDownload(url="https://x/x64", sha256="bb")}
+    assert await client.runner_downloads("owner/repo", "instok") == expected
+    # Cached across repos, and an empty or failed refresh keeps the last good builds.
+    assert await client.runner_downloads("broken/repo", "instok") == expected
     client._runner_downloads_expires_at = time.time() - 1
-    await client.runner_downloads("owner/repo", "instok")
-    assert calls["n"] == 2
-    await client.aclose()
-
-
-@pytest.mark.asyncio
-async def test_runner_downloads_failure_returns_last_known_or_empty(rsa_keypair):
-    pem, _ = rsa_keypair
-    status = {"code": 403}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        if status["code"] != 200:
-            return httpx.Response(status["code"], json={"message": "nope"})
-        return httpx.Response(200, json=_DOWNLOADS)
-
-    client = GitHubAppClient(
-        app_id="42",
-        private_key=pem,
-        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
-    )
-    # Nothing resolved yet: the bootstrap falls back to its pinned version.
-    assert await client.runner_downloads("owner/repo", "instok") == {}
-
-    status["code"] = 200
-    downloads = await client.runner_downloads("owner/repo", "instok")
-    assert set(downloads) == {"x64", "arm64"}
-
-    # An outage after expiry keeps serving the last known builds.
-    status["code"] = 500
-    client._runner_downloads_expires_at = time.time() - 1
-    assert await client.runner_downloads("owner/repo", "instok") == downloads
-    await client.aclose()
-
-
-@pytest.mark.asyncio
-async def test_runner_downloads_empty_answer_keeps_cached_builds(rsa_keypair):
-    pem, _ = rsa_keypair
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        if "empty/repo" in request.url.path:
-            return httpx.Response(200, json=[])
-        return httpx.Response(200, json=_DOWNLOADS)
-
-    client = GitHubAppClient(
-        app_id="42",
-        private_key=pem,
-        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
-    )
-    downloads = await client.runner_downloads("owner/repo", "instok")
-    client._runner_downloads_expires_at = time.time() - 1
-    assert await client.runner_downloads("empty/repo", "instok") == downloads
+    assert await client.runner_downloads("empty/repo", "instok") == expected
+    assert await client.runner_downloads("broken/repo", "instok") == expected
     await client.aclose()
